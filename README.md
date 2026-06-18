@@ -137,30 +137,41 @@ agent, and report where it held and where it broke.
 
 ## Status
 
-Early and honest about it. The evaluation tribunal's deterministic checks and
-single-reviewer core run **today, offline and free** — clone it, run the example
-with no API key, and watch it grade. The council, the orchestrator's
-adjudication, and the input generator are in active development against the
-roadmap below. Every stage ships with an offline mock path, so the whole thing is
-testable at zero cost.
+**v0.1.0 — the whole architecture runs today, offline and free.** The full tribunal
+(deterministic clerk → grounded reviewer → multi-lens council → adjudicating
+orchestrator) and the generator (spec-driven, adversarial, mutation, and the opt-in
+adaptive loop) all run end to end against a mock backend with **no API key**:
+
+```bash
+pip install -e .
+atf run --example     # grade the SQL example through the full tribunal, offline
+pytest                # the whole suite runs offline and free
+```
+
+Wire a real judge by passing an `AnthropicProvider` (the SDK is an optional extra,
+lazily loaded — the core keeps its zero-dependency promise). The live-API path is
+implemented but not exercised by the test suite; every test runs on the mock.
 
 ---
 
 ## Roadmap
 
+> **v0.1.0 implements all six stages** at a first-pass, mock-first level. The list
+> below remains the original build order and a map of where each piece lives.
+
 1. **Deterministic foundation** — the evidence ledger and the first checks
-   (word count, sentence length, URL validity). *In progress.*
+   (word count, sentence length, URL validity). ✅ *Shipped.*
 2. **Target adapter** — drive any agent: a Claude prompt, an endpoint, a CLI,
-   a function. Single-turn first, designed to extend to multi-turn.
+   a function. Single-turn first, designed to extend to multi-turn. ✅ *Shipped.*
 3. **Grounded reviewer** — the reviewer consumes the ledger and walks criteria
-   step by step.
+   step by step. ✅ *Shipped.*
 4. **Council** — multiple reviewers with distinct lenses; surfaces disagreement
-   instead of averaging it away.
+   instead of averaging it away. ✅ *Shipped.*
 5. **Orchestrator + pipeline** — adjudication into a final verdict and rationale;
-   gating and model tiering wired end to end.
+   gating and model tiering wired end to end. ✅ *Shipped.*
 6. **Generator** — spec-driven, then adversarial templates, then mutation; and
    last, an opt-in adaptive loop that feeds verdicts back to target the agent's
-   weak spots.
+   weak spots. ✅ *Shipped.*
 
 ---
 

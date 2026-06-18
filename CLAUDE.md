@@ -6,9 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The Agentic Testing Framework is an adversarial test harness for AI agents with an auditable evaluation **tribunal**. You describe in plain English what a good result looks like; the system generates inputs (including adversarial ones), runs them against the agent under test, and judges the outputs through layered review that ends in a verdict with a written, evidence-cited rationale. It is **agent-agnostic** — a thin adapter lets it drive any agent: a prompt, an HTTP endpoint, a CLI, or a local function.
 
-## Current state (read before assuming code exists)
+## Current state
 
-Design-stage. The repository currently contains only `README.md`, `LICENSE`, and `.gitignore` — **there is no `agentic_testing_framework` package, test suite, or build/lint tooling yet.** The README is the spec; the roadmap below is the build order. When you add code, the architecture and invariants in this file are the contract to honor. Do not invent commands or imports that don't exist — update this section as real tooling lands.
+**v0.1.0 is implemented — the full architecture runs offline.** The `agentic_testing_framework` package implements every layer described below; the suite is **51 tests, all offline and free**, with `ruff` and `mypy` clean.
+
+### Commands
+
+```bash
+pip install -e ".[dev]"                                          # editable install + pytest/ruff/mypy
+pytest                                                           # full offline suite (no API key, no network)
+pytest tests/test_pipeline.py::test_full_pipeline_offline_pass   # a single test
+ruff check .                                                     # lint
+mypy                                                             # type-check (package only; configured in pyproject)
+atf run --example                                                # run the README SQL example through the tribunal, offline
+```
+
+### Layout
+
+- `core/` — `Case`, `Finding`, `EvidenceLedger`, `Verdict`, JSON parsing, model tiers, the shared `complete_json` helper
+- `providers/` — the `Provider` seam; `MockProvider` (offline default, role-aware canned JSON), lazy `AnthropicProvider`
+- `targets/` — the `Target` seam; `function`/`http`/`cli`/`prompt` adapters + `run_target`
+- `tribunal/` — `checks` → `Clerk` (owns the hard gate) → `Reviewer` → `Council` → `Orchestrator` → `Pipeline`/`build_pipeline`
+- `generator/` — `spec`, `adversarial`, `mutation`, `adaptive`
+- `cli.py` — the `atf` entry point
+
+The architecture and invariants below remain the contract for all new code.
 
 ## Architecture — the tribunal pipeline
 
