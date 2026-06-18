@@ -8,7 +8,7 @@ The Agentic Testing Framework is an adversarial test harness for AI agents with 
 
 ## Current state
 
-**v0.1.0 is implemented — the full architecture runs offline.** The `agentic_testing_framework` package implements every layer described below; the suite is **51 tests, all offline and free**, with `ruff` and `mypy` clean.
+**v0.1.0 is implemented — the full architecture runs offline.** The `agentic_testing_framework` package implements every layer described below; the suite is **63 tests, all offline and free**, with `ruff` and `mypy` clean.
 
 ### Commands
 
@@ -24,9 +24,9 @@ atf run --example                                                # run the READM
 ### Layout
 
 - `core/` — `Case`, `Finding`, `EvidenceLedger`, `Verdict`, JSON parsing, model tiers, the shared `complete_json` helper
-- `providers/` — the `Provider` seam; `MockProvider` (offline default, role-aware canned JSON), lazy `AnthropicProvider`
+- `providers/` — the `Provider` seam; `MockProvider` (offline default), `ClaudeCLIProvider` (subprocess `claude -p`, the recommended real backend), lazy `AnthropicProvider`
 - `targets/` — the `Target` seam; `function`/`http`/`cli`/`prompt` adapters + `run_target`
-- `tribunal/` — `checks` → `Clerk` (owns the hard gate) → `Reviewer` → `Council` → `Orchestrator` → `Pipeline`/`build_pipeline`
+- `tribunal/` — `checks` (word/sentence/URL + non-empty, forbidden/required-pattern, JSON-validity, score-threshold) → `Clerk` (owns the hard gate) → `Reviewer` → `Council` → `Orchestrator` → `Pipeline`/`build_pipeline`
 - `generator/` — `spec`, `adversarial`, `mutation`, `adaptive`
 - `cli.py` — the `atf` entry point
 
