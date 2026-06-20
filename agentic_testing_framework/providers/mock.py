@@ -21,7 +21,8 @@ from ..core.roles import (
     detect_role,
 )
 
-_FINDING_ID = re.compile(r"\[([^\]\s]+#\d+)\]")
+# Tolerant of whitespace in a finding's source (e.g. "score check#0"), not just "a:b#0".
+_FINDING_ID = re.compile(r"\[([^\]]+#\d+)\]")
 
 
 def _auto_orchestrator(prompt: str) -> str:

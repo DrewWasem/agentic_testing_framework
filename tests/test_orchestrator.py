@@ -68,3 +68,17 @@ def test_orchestrator_drops_hallucinated_citations():
         Case(input="q", expectation="e"), ledger
     )
     assert verdict.cited_findings == (real.id,)  # only the real id survives
+
+
+def test_orchestrator_source_has_no_averaging_logic():
+    # The "never average" invariant, guarded structurally: a future statistics.mean or
+    # vote-count would trip this. Tokens are chosen so the prompt prose ("average scores",
+    # "majority vote") is NOT matched — only code-level averaging constructs.
+    from pathlib import Path
+
+    import agentic_testing_framework.tribunal.orchestrator as orchestrator_module
+
+    source = Path(orchestrator_module.__file__).read_text(encoding="utf-8")
+    banned = ["statistics", "mean(", "median(", "/ len(", "/len(", "Counter(", ".most_common("]
+    hits = [token for token in banned if token in source]
+    assert not hits, f"orchestrator gained averaging/vote constructs: {hits}"
