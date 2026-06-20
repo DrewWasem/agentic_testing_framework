@@ -1,5 +1,6 @@
 """Resolve providers by name. The Anthropic factory imports the SDK only when called,
-so the registry (and the package) stay dependency-free until a real backend is used.
+so the registry (and the package) stay dependency-free until a real SDK backend is used.
+The Claude-CLI provider needs no SDK (just ``subprocess``), so it is registered directly.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .base import Provider
+from .claude_cli import ClaudeCLIProvider
 from .mock import MockProvider
 
 
@@ -19,6 +21,7 @@ def _make_anthropic(**kwargs: Any) -> Provider:
 
 _REGISTRY: dict[str, Callable[..., Provider]] = {
     "mock": MockProvider,
+    "claude-cli": ClaudeCLIProvider,
     "anthropic": _make_anthropic,
 }
 
