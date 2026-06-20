@@ -16,9 +16,10 @@ class Tier(str, Enum):
     FRONTIER = "frontier"
 
 
-# Default Anthropic model id per tier. Swap these in one place, or override per provider.
+# Default Anthropic model id per tier — rolling aliases (no date suffix) so each tier
+# tracks the latest snapshot of its model. Swap in one place, or override per provider.
 DEFAULT_MODELS: dict[Tier, str] = {
-    Tier.CHEAP: "claude-haiku-4-5-20251001",
+    Tier.CHEAP: "claude-haiku-4-5",
     Tier.MID: "claude-sonnet-4-6",
     Tier.FRONTIER: "claude-opus-4-8",
 }

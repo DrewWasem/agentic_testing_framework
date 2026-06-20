@@ -47,3 +47,17 @@ def test_council_preserves_disagreement():
     assert any(f.passed is True for f in council_findings)
     assert any(f.passed is False for f in council_findings)  # both survive — not averaged
     assert {f.metadata["lens"] for f in council_findings} == {"accuracy", "adversarial"}
+
+
+def test_council_degrades_on_unparseable_lens_output():
+    # One lens emits junk on every attempt; the council records a parse-error finding
+    # rather than crashing — symmetry with the reviewer's identical degradation.
+    mock = MockProvider(["not json", "still not json"])
+    ledger = EvidenceLedger()
+    Council(mock, lenses=["accuracy"], max_retries=1).deliberate(
+        Case(input="q", expectation="e", output="x", criteria=["c1"]), ledger
+    )
+    findings = ledger.by_source("council")
+    assert len(findings) == 1
+    assert findings[0].passed is False
+    assert "could not be parsed" in findings[0].message
