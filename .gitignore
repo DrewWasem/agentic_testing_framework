@@ -58,3 +58,6 @@ Thumbs.db
 
 # Claude Code local (machine-specific) settings — shared config is committed
 .claude/settings.local.json
+# Local working state: session memory/plans and subagent scratch output
+.claude/agent-output/
+.claude/memory/
