@@ -16,6 +16,10 @@ classifiers = [
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Testing",
 ]
 # Zero required dependencies in the core — model SDKs are optional and lazily loaded.
@@ -34,6 +38,10 @@ Repository = "https://github.com/DrewWasem/agentic_testing_framework"
 
 [tool.setuptools.packages.find]
 include = ["agentic_testing_framework*"]
+
+[tool.setuptools.package-data]
+# Ship the PEP 561 marker so downstream consumers get the inline types.
+agentic_testing_framework = ["py.typed"]
 
 [tool.ruff]
 line-length = 100
