@@ -15,15 +15,13 @@ from ..core.case import Case
 from ..core.llm import complete_json
 from ..core.parsing import JSONParseError
 from ..core.roles import ROLE_GENERATOR, role_header
+from ..prompts import get_prompt
 from ..providers.base import Provider
 
-GENERATOR_SYSTEM = (
-    "You generate test cases for an agent under test. Invent realistic, diverse INPUTS for "
-    "the described task, each paired with a clear EXPECTATION of what a good result looks "
-    "like. Respond with ONLY a JSON object of the form: "
-    '{"cases": [{"input": str, "expectation": str, "criteria": [str]}]}. '
-    "Generate exactly N cases. If unsure, prefer simple, unambiguous cases."
-)
+# Prompt-as-code: the generator's system text is versioned in the registry. ``PROMPT_ID`` is
+# its key; ``GENERATOR_SYSTEM`` stays as a module-level alias of the registered text.
+PROMPT_ID = "generator"
+GENERATOR_SYSTEM = get_prompt(PROMPT_ID).text
 
 
 @dataclass

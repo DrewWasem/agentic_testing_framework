@@ -14,22 +14,15 @@ from ..core.llm import complete_json
 from ..core.parsing import JSONParseError
 from ..core.roles import ROLE_REVIEWER, role_header
 from ..core.types import Severity
+from ..prompts import get_prompt
 from ..providers.base import Provider
 from ._judging import parse_findings
 
-REVIEWER_SYSTEM = (
-    "You are a strict evaluation reviewer. Grade the agent OUTPUT only against the stated "
-    "EXPECTATION and CRITERIA -- nothing else. Quote exact evidence from the output for "
-    "every judgment. Be strict: if a criterion is not clearly and fully met, mark it "
-    "failed. Reward results, not intentions. The DETERMINISTIC FACTS block is ground truth "
-    "established by code; rely on it and never recompute or contradict it. "
-    "Respond with ONLY a JSON object of the form: "
-    '{"findings": [{"criterion": str, "passed": bool, '
-    '"severity": "info|low|medium|high|critical", "message": str, "evidence": str}], '
-    '"summary": str}. '
-    "If you are unsure about a criterion, say so explicitly in the message and mark "
-    "passed=false. Do not guess or fabricate."
-)
+# Prompt-as-code: the reviewer's system text is versioned in the registry. ``PROMPT_ID`` is
+# the key the pipeline stamps onto the verdict; ``REVIEWER_SYSTEM`` stays as a module-level
+# alias of the registered text (byte-for-byte what it was) for any other importer.
+PROMPT_ID = "reviewer"
+REVIEWER_SYSTEM = get_prompt(PROMPT_ID).text
 
 
 class Reviewer:

@@ -34,11 +34,22 @@ from .metrics import (
     get_metric,
     run_metrics,
 )
+from .prompts import PROMPTS, Prompt, get_prompt
 from .providers.base import CountingProvider, Provider
 from .providers.cache import CachingProvider
 from .providers.claude_cli import ClaudeCLIProvider
 from .providers.mock import MockProvider
 from .providers.registry import get_provider, register_provider
+from .regression import (
+    GoldenCase,
+    GoldenSet,
+    RegressionReport,
+    RegressionResult,
+    load_golden,
+    run_regression,
+    save_golden,
+    update_baseline,
+)
 from .reporting import render_html, render_junit
 from .targets.base import Target
 from .targets.cli import CliTarget
@@ -87,6 +98,8 @@ __all__ = [
     "FunctionTarget",
     "GEval",
     "GenSpec",
+    "GoldenCase",
+    "GoldenSet",
     "Hallucination",
     "HttpTarget",
     "INJECTION_CANARY",
@@ -100,9 +113,13 @@ __all__ = [
     "NonEmptyCheck",
     "Orchestrator",
     "Outcome",
+    "PROMPTS",
     "Pipeline",
+    "Prompt",
     "PromptTarget",
     "Provider",
+    "RegressionReport",
+    "RegressionResult",
     "RequiredPatternCheck",
     "Reviewer",
     "ScoreThresholdCheck",
@@ -120,12 +137,17 @@ __all__ = [
     "build_pipeline",
     "default_checks",
     "get_metric",
+    "get_prompt",
     "get_provider",
     "injection_leak_check",
+    "load_golden",
     "register_provider",
     "render_html",
     "render_junit",
     "run_metrics",
+    "run_regression",
     "run_target",
+    "save_golden",
     "summarize",
+    "update_baseline",
 ]

@@ -19,6 +19,7 @@ from .core.case import Case
 from .core.types import Outcome, Verdict
 from .metrics import MetricReport, run_metrics
 from .providers.mock import MockProvider
+from .regression import RegressionReport, load_golden, run_regression, update_baseline
 from .reporting import render_html, render_junit
 from .tribunal.pipeline import build_pipeline
 
@@ -94,6 +95,52 @@ def _print_metric_report(report: MetricReport) -> None:
     )
 
 
+def _print_regression_report(report: RegressionReport) -> None:
+    """Print a per-case table (expected vs. actual, match/flip) and the drift summary.
+
+    The verdict is compared on its ``Outcome`` property, not its rationale, so this table is
+    the audit trail for a prompt/model change: every flipped ruling is named, and the drift
+    line states whether the run stayed within the budget the gate enforces.
+    """
+
+    print("Regression vs. baseline:")
+    for result in report.results:
+        marker = "OK  " if result.status == "match" else "FLIP"
+        print(
+            f"  [{marker}] {result.case_id:<24} "
+            f"expected={result.expected.value:<12} actual={result.actual.value}"
+        )
+    verdict = "PASS" if report.passed else "FAIL"
+    print(
+        f"  drift={report.drift:.3f} ({report.flips}/{report.total} flipped) "
+        f"budget={report.max_drift:.3f} -> {verdict}"
+    )
+
+
+def _run_regression_command(golden_path: str, max_drift: float, update: bool) -> int:
+    """Run (or rewrite) a golden set and return a CI exit code.
+
+    With ``update`` set, re-run and write the current outcomes as the new baseline, then exit
+    0 — the ``--update-baseline`` escape hatch after an intentional change. Otherwise run the
+    regression and exit non-zero when drift exceeds the budget, so CI gates on it.
+    """
+
+    try:
+        golden = load_golden(golden_path)
+    except (OSError, ValueError) as exc:
+        print(f"error: could not load golden set {golden_path}: {exc}", file=sys.stderr)
+        return 2
+    # An offline pipeline — regression must run free, no API key, like the rest of the CLI.
+    pipeline = build_pipeline()
+    if update:
+        update_baseline(golden_path, pipeline, golden)
+        print(f"Updated baseline written to {golden_path} ({len(golden)} cases)")
+        return 0
+    report = run_regression(golden, pipeline, max_drift=max_drift)
+    _print_regression_report(report)
+    return 0 if report.passed else 1
+
+
 def _exit_code(verdict: Verdict, gate: bool) -> int:
     """Return ``1`` when gating is on and the ruling is not PASS, else ``0``.
 
@@ -152,12 +199,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="NAMES",
         help="Comma-separated LLM-judge metrics to also run (e.g. g_eval,faithfulness,toxicity)",
     )
+    reg_parser = sub.add_parser(
+        "regression", help="Re-run a golden set and report verdict drift vs. the baseline"
+    )
+    reg_parser.add_argument(
+        "--golden", metavar="PATH", required=True, help="Path to the golden-set JSON baseline"
+    )
+    reg_parser.add_argument(
+        "--max-drift",
+        type=float,
+        default=0.0,
+        metavar="FLOAT",
+        help="Allowed fraction of flipped verdicts before the run fails (default 0.0)",
+    )
+    reg_parser.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="Re-run and rewrite the baseline with the current outcomes, then exit 0",
+    )
     sub.add_parser("version", help="Print the version")
 
     args = parser.parse_args(argv)
     if args.command == "version":
         print(__version__)
         return 0
+    if args.command == "regression":
+        return _run_regression_command(args.golden, args.max_drift, args.update_baseline)
     if args.command == "run":
         if args.example:
             case = _example_case()

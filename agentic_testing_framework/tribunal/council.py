@@ -16,8 +16,14 @@ from ..core.llm import complete_json
 from ..core.parsing import JSONParseError
 from ..core.roles import ROLE_COUNCIL, role_header
 from ..core.types import Severity
+from ..prompts import get_prompt
 from ..providers.base import Provider
 from ._judging import parse_findings
+
+# Prompt-as-code: the per-lens system text is built from the versioned ``council`` template
+# in the registry (which carries ``{lens}``/``{guidance}`` placeholders); ``PROMPT_ID`` is
+# the key the pipeline stamps onto the verdict.
+PROMPT_ID = "council"
 
 LENS_GUIDANCE = {
     "accuracy": "Judge ONLY factual and logical correctness against the expectation.",
@@ -65,17 +71,9 @@ class Council:
 
     def _system(self, lens: str) -> str:
         guidance = LENS_GUIDANCE.get(lens, f"Judge the output through the '{lens}' lens.")
-        return (
-            f"You are one reviewer on an evaluation council, assigned a single lens: "
-            f"{lens}. {guidance} Judge the agent OUTPUT only against the EXPECTATION and "
-            "CRITERIA, through your lens only. Treat the DETERMINISTIC FACTS as ground "
-            "truth. Quote evidence. You may disagree with the other reviewers -- report "
-            "what you see. Respond with ONLY a JSON object of the form: "
-            '{"findings": [{"criterion": str, "passed": bool, '
-            '"severity": "info|low|medium|high|critical", "message": str, '
-            '"evidence": str}], "summary": str}. '
-            "If unsure, say so and mark passed=false."
-        )
+        # ``str.replace`` (not ``.format``) so the literal JSON braces in the template are left
+        # untouched; the registry text is the real prompt with two named tokens.
+        return get_prompt(PROMPT_ID).text.replace("{lens}", lens).replace("{guidance}", guidance)
 
     def _render_prompt(self, case: Case, lens: str, facts: str, reviewer_notes: str) -> str:
         if case.criteria:
