@@ -23,6 +23,17 @@ from .generator.adversarial import (
 )
 from .generator.mutation import Mutator
 from .generator.spec import GenSpec, SpecGenerator
+from .metrics import (
+    AnswerRelevancy,
+    Faithfulness,
+    GEval,
+    Hallucination,
+    Metric,
+    MetricReport,
+    Toxicity,
+    get_metric,
+    run_metrics,
+)
 from .providers.base import CountingProvider, Provider
 from .providers.cache import CachingProvider
 from .providers.claude_cli import ClaudeCLIProvider
@@ -59,6 +70,7 @@ __all__ = [
     "AdaptiveLoop",
     "AdaptiveReport",
     "AdversarialGenerator",
+    "AnswerRelevancy",
     "CachingProvider",
     "Case",
     "Check",
@@ -69,14 +81,19 @@ __all__ = [
     "Council",
     "CountingProvider",
     "EvidenceLedger",
+    "Faithfulness",
     "Finding",
     "ForbiddenPatternCheck",
     "FunctionTarget",
+    "GEval",
     "GenSpec",
+    "Hallucination",
     "HttpTarget",
     "INJECTION_CANARY",
     "JSONParseError",
     "JSONValidityCheck",
+    "Metric",
+    "MetricReport",
     "MetricsSummary",
     "MockProvider",
     "Mutator",
@@ -95,17 +112,20 @@ __all__ = [
     "StageCost",
     "Target",
     "Tier",
+    "Toxicity",
     "URLValidityCheck",
     "Verdict",
     "WordCountCheck",
     "__version__",
     "build_pipeline",
     "default_checks",
+    "get_metric",
     "get_provider",
     "injection_leak_check",
     "register_provider",
     "render_html",
     "render_junit",
+    "run_metrics",
     "run_target",
     "summarize",
 ]

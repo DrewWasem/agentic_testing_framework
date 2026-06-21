@@ -17,6 +17,8 @@ from collections.abc import Sequence
 from . import __version__
 from .core.case import Case
 from .core.types import Outcome, Verdict
+from .metrics import MetricReport, run_metrics
+from .providers.mock import MockProvider
 from .reporting import render_html, render_junit
 from .tribunal.pipeline import build_pipeline
 
@@ -69,6 +71,27 @@ def _print_cost_rollup(verdict: Verdict) -> None:
     )
     if verdict.gated:
         print("  hard gate short-circuited: 0 model calls, $0 spent")
+
+
+def _print_metric_report(report: MetricReport) -> None:
+    """Print each metric's normalized score and the aggregate mean/pass-fail.
+
+    The metrics are an opt-in lens library: this only runs when ``--metrics`` is passed, so
+    the default ``atf run --example`` keeps its exact six-call cost.
+    """
+
+    print("Metrics (LLM-judge lenses, normalized 0..1):")
+    for finding in report.findings:
+        name = str(finding.metadata.get("metric", finding.source))
+        score = finding.metadata.get("score")
+        status = "PASS" if finding.passed else "FAIL"
+        shown = f"{score:.3f}" if isinstance(score, int | float) else "n/a"
+        print(f"  {name:<16} {shown}  [{status}]  {finding.message}")
+    verdict = "PASS" if report.passed else "FAIL"
+    print(
+        f"  {'AGGREGATE':<16} mean={report.mean:.3f} "
+        f"(threshold {report.threshold:.2f}) -> {verdict}"
+    )
 
 
 def _exit_code(verdict: Verdict, gate: bool) -> int:
@@ -124,6 +147,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Print a per-stage rollup of calls, latency, and estimated cost",
     )
+    run_parser.add_argument(
+        "--metrics",
+        metavar="NAMES",
+        help="Comma-separated LLM-judge metrics to also run (e.g. g_eval,faithfulness,toxicity)",
+    )
     sub.add_parser("version", help="Print the version")
 
     args = parser.parse_args(argv)
@@ -139,6 +167,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_verdict(verdict)
             if args.show_cost:
                 _print_cost_rollup(verdict)
+            if args.metrics:
+                names = [n.strip() for n in args.metrics.split(",") if n.strip()]
+                # A separate offline provider — metrics are opt-in and standalone, so the
+                # tribunal's six model calls above are unaffected by running them.
+                report = run_metrics(case, MockProvider(), metrics=names)
+                _print_metric_report(report)
             ok = True
             if args.html:
                 ok = _write_report(args.html, render_html(verdict, case=case), "HTML") and ok

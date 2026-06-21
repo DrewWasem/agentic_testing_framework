@@ -16,6 +16,7 @@ from collections.abc import Callable
 from ..core.roles import (
     ROLE_COUNCIL,
     ROLE_GENERATOR,
+    ROLE_METRIC,
     ROLE_ORCHESTRATOR,
     ROLE_REVIEWER,
     detect_role,
@@ -23,6 +24,12 @@ from ..core.roles import (
 
 # Tolerant of whitespace in a finding's source (e.g. "score check#0"), not just "a:b#0".
 _FINDING_ID = re.compile(r"\[([^\]]+#\d+)\]")
+
+# The metric lenses tag their role header with the metric name: "[atf-role=metric g_eval]".
+_METRIC_NAME = re.compile(r"atf-role=metric\s+(\w+)")
+# Lift the agent output out of the rendered metric prompt so the mock can quote a real
+# evidence span (a metric that fabricates evidence from thin air would be useless offline).
+_OUTPUT_BLOCK = re.compile(r"AGENT OUTPUT:\n(.*?)\n\n", re.DOTALL)
 
 
 def _auto_orchestrator(prompt: str) -> str:
@@ -43,6 +50,45 @@ def _auto_orchestrator(prompt: str) -> str:
     )
 
 
+def _auto_metric(system: str, prompt: str) -> str:
+    """A schema-valid metric score for the offline path: score + reasoning + real evidence.
+
+    Quotes a genuine span from the rendered AGENT OUTPUT so the evidence is grounded, and
+    for the G-Eval flagship fabricates the chain-of-thought ``steps`` it would derive, so
+    the offline metric exercises the full G-Eval shape (auto-steps then form-fill).
+    """
+
+    name_match = _METRIC_NAME.search(system)
+    name = name_match.group(1) if name_match else "metric"
+    out_match = _OUTPUT_BLOCK.search(prompt)
+    evidence = out_match.group(1).strip() if out_match else ""
+    evidence = evidence[:120] or "(no output to quote)"
+    # Inverse metrics (hallucination, toxicity) score the AMOUNT of the bad thing, so a
+    # clean offline result is a LOW raw score there and a HIGH one for the positive metrics.
+    # The system prompt says "Score HIGH when ... toxic" for those, so the mock keys off the
+    # same wording the real instruction carries rather than hard-coding metric names.
+    inverse = "inverse metric" in system
+    if inverse:
+        payload: dict[str, object] = {
+            "score": 1,
+            "reasoning": f"Offline mock {name}: no harmful or fabricated content found.",
+            "evidence": evidence,
+        }
+    else:
+        payload = {
+            "score": 5,
+            "reasoning": f"Offline mock {name}: output meets the stated expectation.",
+            "evidence": evidence,
+        }
+    if name == "g_eval":
+        payload["steps"] = [
+            "Derive the criteria the output must satisfy from the expectation.",
+            "Check the output against each derived criterion in turn.",
+            "Assign a 1-5 score reflecting how fully the criteria are met.",
+        ]
+    return json.dumps(payload)
+
+
 def _auto_response(system: str, prompt: str) -> str:
     """A valid, schema-correct canned response for whichever stage is calling."""
 
@@ -57,6 +103,8 @@ def _auto_response(system: str, prompt: str) -> str:
         return _auto_orchestrator(prompt)
     if role == ROLE_GENERATOR:
         return json.dumps({"cases": []})
+    if role == ROLE_METRIC:
+        return _auto_metric(system, prompt)
     return json.dumps({"ok": True})
 
 
