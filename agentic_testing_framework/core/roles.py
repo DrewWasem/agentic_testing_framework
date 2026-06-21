@@ -13,6 +13,7 @@ ROLE_REVIEWER = "reviewer"
 ROLE_COUNCIL = "council"
 ROLE_ORCHESTRATOR = "orchestrator"
 ROLE_GENERATOR = "generator"
+ROLE_METRIC = "metric"
 
 _ROLE_RE = re.compile(r"atf-role=(\w+)")
 

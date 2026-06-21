@@ -168,6 +168,54 @@ figure is an estimate (tokens approximated from the actual text), not a bill.
 
 ---
 
+## Metrics
+
+The tribunal is the core evaluation; the metric library is a set of **named LLM-judge
+lenses** you can run alongside it when you want a familiar, single-axis score. Each metric
+asks a model to grade one dimension of the output and writes a structured finding into the
+**same evidence ledger** as every other stage — the numeric score lives in the finding's
+`metadata`, with quoted evidence and a pass/fail, so a metric result is as auditable as a
+council finding rather than a bare number.
+
+| Metric | Asks | Direction |
+|---|---|:---:|
+| **`g_eval`** | derive the rubric from the expectation, then form-fill a score | ↑ better |
+| `faithfulness` | is every claim supported by the provided context? | ↑ better |
+| `answer_relevancy` | does the output address the input that was asked? | ↑ better |
+| `hallucination` | how much fabricated/unsupported content is present? | inverse |
+| `toxicity` | how harmful or abusive is the output? | inverse |
+
+**G-Eval is the flagship.** Rather than scoring against a fixed rubric, it has the model
+*derive* the evaluation steps from the task's own expectation and criteria first (chain of
+thought), then follow those steps to form-fill a 1–5 score. The derived steps are recorded
+in the finding's `metadata["steps"]`, so the rubric it graded against is part of the record,
+not hidden. The inverse metrics report the *amount* of the bad thing and are normalized so
+every score reads the same direction: a clean output lands near 1.0 across the board.
+
+```python
+from agentic_testing_framework import Case, MockProvider, run_metrics
+
+report = run_metrics(case, MockProvider(), metrics=["g_eval", "faithfulness", "toxicity"])
+print(report.scores)   # {"g_eval": 1.0, "faithfulness": 1.0, "toxicity": 1.0}
+print(report.mean, report.passed)
+```
+
+Or from the CLI, opt in with `--metrics`:
+
+```bash
+atf run --example --metrics g_eval,faithfulness,toxicity
+```
+
+`run_metrics` aggregates the per-metric scores into a mean and an overall pass/fail — the
+one place averaging happens, deliberately here and never in the orchestrator, whose job is
+to weigh disagreement, not collapse it. The metrics are **opt-in and standalone**: they do
+not run in the default pipeline, so wiring them in never changes its cost. They **complement,
+rather than replace**, the deterministic clerk and the tribunal — a metric is one model's
+view of one axis; the tribunal is the adjudicated verdict. Everything here runs offline and
+free through the mock, like the rest of the framework.
+
+---
+
 ## A test case, end to end
 
 You can hand the tribunal a result that already exists:
