@@ -80,9 +80,10 @@ assumes judges are fallible and builds the structure to contain that, rather tha
 trusting a single confident verdict.
 
 **It's cheap by construction.** Deterministic checks are free and run first.
-A failed hard gate short-circuits the case before a single token is spent.
-Reviewers run on a small, cheap model; only the orchestrator — the one place deep
-reasoning earns its cost — runs on a frontier model.
+A failed hard gate short-circuits the case before a single token is spent. The
+pipeline routes by model tier — wire a small, cheap model to the reviewers and a
+frontier model to the orchestrator, the one place deep reasoning earns its cost.
+(The offline default runs a single mock for every stage.)
 
 ---
 
@@ -171,8 +172,11 @@ orchestrator) and the generator (spec-driven, adversarial, mutation, and the opt
 adaptive loop) all run end to end against a mock backend with **no API key**:
 
 ```bash
-pip install agentic-testing-framework
-atf run --example     # grade the SQL example through the full tribunal, offline
+git clone https://github.com/DrewWasem/agentic_testing_framework
+cd agentic_testing_framework
+pip install -e ".[dev]"     # the core has zero required deps; SDKs are optional extras
+
+atf run --example           # grade the SQL example through the full tribunal, offline
 ```
 
 That last command adjudicates the SQL example end to end against a mock backend —
@@ -190,14 +194,9 @@ Evidence ledger:
   [clerk:url_validity#2] clerk:url_validity (info): No URLs found in output.
 ```
 
-**Develop from source** — the whole suite runs offline and free:
-
-```bash
-git clone https://github.com/DrewWasem/agentic_testing_framework
-cd agentic_testing_framework
-pip install -e ".[dev]"
-pytest                # 83 tests, all offline, no API key
-```
+Run the whole suite the same way — `pytest` (83 tests, all offline, no API key).
+A tagged **PyPI** release is on the way; once it lands,
+`pip install agentic-testing-framework` will be all you need.
 
 Wire a real judge by passing an `AnthropicProvider` (the SDK is an optional extra,
 lazily loaded — the core keeps its zero-dependency promise). The live-API path is
