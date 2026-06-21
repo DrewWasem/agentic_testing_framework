@@ -2,6 +2,13 @@
 
 **An adversarial test harness for AI agents, with an auditable evaluation tribunal.**
 
+[![CI](https://github.com/DrewWasem/agentic_testing_framework/actions/workflows/ci.yml/badge.svg)](https://github.com/DrewWasem/agentic_testing_framework/actions/workflows/ci.yml)
+[![Python 3.10–3.13](https://img.shields.io/badge/python-3.10--3.13-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![tests: 83 offline & free](https://img.shields.io/badge/tests-83%20offline%20%26%20free-brightgreen.svg)](#status)
+[![lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](https://github.com/astral-sh/ruff)
+[![types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](https://mypy-lang.org/)
+
 Most ways of testing an agent check the wrong thing. They assert on plumbing —
 did the API return 200, did this exact string appear — and they break the moment
 the wording changes. What actually matters is harder to pin down: *given a task,
@@ -79,6 +86,27 @@ reasoning earns its cost — runs on a frontier model.
 
 ---
 
+## How it compares
+
+Most eval tools either string-match (brittle) or ask a single LLM "is this good?"
+(lenient and unauditable). The tribunal makes different design choices — and two
+of them appear to be unclaimed across the tools surveyed:
+
+| | promptfoo | DeepEval | Ragas | Inspect AI | **ATF** |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Deterministic checks **ground** the judge (injected as fact) | – | – | – | – | **✓** |
+| Single shared **citable evidence ledger** → written rationale | per-assert | – | traces | – | **✓** |
+| Orchestrator **adjudicates, never averages** | – | – | vote | majority | **✓** |
+| Distinct-lens **panel** (not a self-ensemble) | – | – | – | – | **✓** |
+| Hard gate **short-circuits before any tokens are spent** | partial | partial | – | – | **✓** |
+| Offline + **standard-library-only, zero-dependency core** | – | – | – | – | **✓** |
+
+This is a capability sketch, not a benchmark — each of those tools does plenty
+that this one doesn't (managed datasets, large metric libraries, dashboards). The
+point is the *shape* of the evaluation, not a feature count.
+
+---
+
 ## How it fits together
 
 ```
@@ -143,9 +171,32 @@ orchestrator) and the generator (spec-driven, adversarial, mutation, and the opt
 adaptive loop) all run end to end against a mock backend with **no API key**:
 
 ```bash
-pip install -e .
+pip install agentic-testing-framework
 atf run --example     # grade the SQL example through the full tribunal, offline
-pytest                # the whole suite runs offline and free
+```
+
+That last command adjudicates the SQL example end to end against a mock backend —
+no API key, no network — and prints a verdict whose every cited finding is
+traceable in the evidence ledger:
+
+```text
+VERDICT: PASS
+Rationale: Offline mock adjudication: deterministic checks passed and no finding failed.
+Cited findings: clerk:word_count#0, clerk:sentence_length#1, clerk:url_validity#2
+Model calls: 6 (gated=False)
+Evidence ledger:
+  [clerk:word_count#0] clerk:word_count (info): Output word count = 12.
+  [clerk:sentence_length#1] clerk:sentence_length (info): Average sentence length = 12.0 words across 1 sentence(s).
+  [clerk:url_validity#2] clerk:url_validity (info): No URLs found in output.
+```
+
+**Develop from source** — the whole suite runs offline and free:
+
+```bash
+git clone https://github.com/DrewWasem/agentic_testing_framework
+cd agentic_testing_framework
+pip install -e ".[dev]"
+pytest                # 83 tests, all offline, no API key
 ```
 
 Wire a real judge by passing an `AnthropicProvider` (the SDK is an optional extra,
@@ -186,6 +237,15 @@ implemented but not exercised by the test suite; every test runs on the mock.
   cites the findings behind it.
 
 ---
+
+## How this was built
+
+This repository is itself a piece of agentic engineering: it was designed, built,
+audited, and hardened by directing AI coding agents against a fixed set of
+invariants, with a skeptical reviewer agent on every phase and a clean trail of
+pull requests. The full story — including a real ledger-corruption bug the
+reviewer caught (`bool("false")` is `True` in Python) — is in
+**[BUILD.md](BUILD.md)**.
 
 ## Contributing
 
