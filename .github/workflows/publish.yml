@@ -1,0 +1,53 @@
+name: Publish to PyPI
+
+# Publishes the package to PyPI via Trusted Publishing (OIDC) — no API token is
+# ever stored in the repo. This is deliberate: the 2025–26 PyPI supply-chain
+# incidents (GhostAction, Telnyx, LiteLLM) all turned on stolen long-lived tokens.
+# See https://docs.pypi.org/trusted-publishers/
+#
+# Manual trigger only, so the first publish is intentional and never fires a
+# failing job on a release cut before the PyPI pending-publisher is configured.
+# One-time setup on PyPI: add a pending Trusted Publisher for project
+# "agentic-testing-framework", owner "DrewWasem", repo "agentic_testing_framework",
+# workflow "publish.yml", environment "pypi". Then run this workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/agentic-testing-framework
+    permissions:
+      id-token: write   # OIDC token for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      # Third-party action pinned to a commit SHA (v1.14.0) as supply-chain defense.
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b

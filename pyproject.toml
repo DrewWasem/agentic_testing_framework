@@ -35,6 +35,10 @@ Repository = "https://github.com/DrewWasem/agentic_testing_framework"
 [tool.setuptools.packages.find]
 include = ["agentic_testing_framework*"]
 
+[tool.setuptools.package-data]
+# Ship the PEP 561 marker so downstream consumers get the inline types.
+agentic_testing_framework = ["py.typed"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
