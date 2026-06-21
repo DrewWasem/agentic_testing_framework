@@ -1,0 +1,38 @@
+# Example: gate a pull request on the tribunal's verdict.
+#
+# This is a RECIPE, not an active workflow in this repository. Copy it into your own
+# repo at `.github/workflows/eval.yml` and adjust the case you run. As written it runs
+# the built-in offline example through the full tribunal, writes a JUnit report, and
+# `--gate` makes `atf` exit 1 on a non-PASS verdict — which fails the job, so a
+# regression in the agent under test blocks the merge. The JUnit file is uploaded as an
+# artifact on every run (success or failure) so the rationale and cited findings are
+# always available in the run summary.
+#
+# Action versions match this repo's ci.yml: checkout@v4, setup-python@v5, upload-artifact@v4.
+
+name: Agent eval
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (editable + dev extras)
+        run: python -m pip install -e ".[dev]"
+      - name: Evaluate (gate the job on the verdict)
+        # Replace `--example` with your own case wiring. Exit 1 on a non-PASS verdict
+        # fails this step, and the job, so the PR cannot merge on a regression.
+        run: atf run --example --junit results.xml --gate
+      - name: Upload JUnit report
+        if: always() # publish the evidence even when the gate fails the job above
+        uses: actions/upload-artifact@v4
+        with:
+          name: atf-results
+          path: results.xml

@@ -139,6 +139,26 @@ judge backend or pointing the harness at a different agent is a one-file change.
 
 ---
 
+## Reports & CI
+
+A verdict is only as useful as it is inspectable, so the run can emit two
+artifacts:
+
+```bash
+atf run --example --html report.html --junit results.xml --gate
+```
+
+`--html` writes a self-contained HTML page — the ruling and its rationale, the
+findings the orchestrator cited, and the full evidence ledger grouped by source
+and ordered by severity, so the whole reasoning chain is auditable in one file.
+`--junit` writes JUnit XML that any CI runner already understands; a non-PASS
+verdict becomes a `<failure>` carrying the rationale and cited findings. `--gate`
+makes `atf` exit 1 on a non-PASS, so a regression in the agent under test fails
+the job and blocks the merge. A copy-into-`.github/workflows/` recipe is in
+[`examples/github-actions-eval.yml`](examples/github-actions-eval.yml).
+
+---
+
 ## A test case, end to end
 
 You can hand the tribunal a result that already exists:
