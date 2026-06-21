@@ -1,0 +1,38 @@
+[
+  {
+    "id": "sql-revenue",
+    "input": "Write a SQL query for total revenue per region in 2025.",
+    "output": "SELECT region, SUM(amount) AS revenue FROM orders WHERE year=2025 GROUP BY region;",
+    "expectation": "A correct, runnable SQL query answering the question.",
+    "criteria": [
+      "Groups by region",
+      "Sums a revenue/amount column",
+      "Filters to the year 2025",
+      "Is syntactically valid SQL"
+    ],
+    "expected": {"outcome": "pass"}
+  },
+  {
+    "id": "haiku-autumn",
+    "input": "Write a haiku about autumn.",
+    "output": "Crisp leaves drift downward / a cool wind hums through bare boughs / autumn settles in",
+    "expectation": "A three-line haiku evoking autumn.",
+    "criteria": [
+      "Has three lines",
+      "Evokes an autumn image"
+    ],
+    "expected": {"outcome": "pass"}
+  },
+  {
+    "id": "list-primes",
+    "input": "List the first five prime numbers.",
+    "output": "2, 3, 5, 7, 11",
+    "expectation": "The first five primes, in order.",
+    "criteria": [
+      "Lists exactly five numbers",
+      "All are prime",
+      "They are the smallest five primes in order"
+    ],
+    "expected": {"outcome": "pass"}
+  }
+]

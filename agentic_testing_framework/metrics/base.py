@@ -27,7 +27,12 @@ from ..core.llm import complete_json
 from ..core.parsing import JSONParseError
 from ..core.roles import ROLE_METRIC, role_header
 from ..core.types import Severity
+from ..prompts import get_prompt
 from ..providers.base import Provider
+
+# Prompt-as-code: the shared metric scaffold is versioned in the registry under this id; the
+# per-metric name/instruction/scale are interpolated around it in ``Metric._system``.
+PROMPT_ID = "metric"
 
 # Same tolerance the council/reviewer use for ``passed`` — a model that answers in prose
 # ("four out of five", "0.8") still yields a usable number instead of crashing the metric.
@@ -95,17 +100,15 @@ class Metric(ABC):
     def _system(self) -> str:
         """Role-tagged system prompt; the role extra carries the metric name for the mock."""
 
-        return (
-            f"{role_header(ROLE_METRIC, self.name)}\n"
-            f"You are an evaluation metric named '{self.name}'. {self.instruction} "
-            "Judge the agent OUTPUT only against the provided INPUT, EXPECTATION, and "
-            "CRITERIA -- nothing else. Quote an exact span of evidence from the output. "
-            f"Score on an integer scale from 1 (worst) to {int(self.scale)} (best). "
-            "Respond with ONLY a JSON object of the form "
-            '{"score": <number>, "reasoning": <str>, "evidence": <str>}. '
-            "If you are unsure, say so in the reasoning and score conservatively. Do not "
-            "guess or fabricate."
+        # ``str.replace`` (not ``.format``) leaves the literal JSON braces in the template
+        # untouched; the registry text is the real prompt with three named tokens.
+        body = (
+            get_prompt(PROMPT_ID)
+            .text.replace("{name}", self.name)
+            .replace("{instruction}", self.instruction)
+            .replace("{scale}", str(int(self.scale)))
         )
+        return f"{role_header(ROLE_METRIC, self.name)}\n{body}"
 
     def _render_prompt(self, case: Case) -> str:
         if case.criteria:

@@ -5,7 +5,7 @@
 [![CI](https://github.com/DrewWasem/agentic_testing_framework/actions/workflows/ci.yml/badge.svg)](https://github.com/DrewWasem/agentic_testing_framework/actions/workflows/ci.yml)
 [![Python 3.10–3.13](https://img.shields.io/badge/python-3.10--3.13-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![tests: 83 offline & free](https://img.shields.io/badge/tests-83%20offline%20%26%20free-brightgreen.svg)](#status)
+[![tests: offline & free](https://img.shields.io/badge/tests-offline%20%26%20free-brightgreen.svg)](#status)
 [![lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](https://github.com/astral-sh/ruff)
 [![types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](https://mypy-lang.org/)
 
@@ -216,6 +216,43 @@ free through the mock, like the rest of the framework.
 
 ---
 
+## Prompt versioning & regression
+
+A prompt is the thing most likely to move a verdict, so the framework treats prompts as
+code. Every judge, reviewer, council lens, orchestrator, generator, and metric system prompt
+lives in a single registry with a stable `id`, an integer `version`, and a one-line-per-
+change `changelog`; the stages source their text from there instead of holding a private
+string. The version that judged a case is then **stamped onto the verdict** —
+`verdict.prompt_versions` records `{stage: version}` — so a ruling states which prompt
+versions produced it. That is the auditability thesis applied to the prompts themselves: a
+change in behaviour after a prompt edit is attributable to a specific version bump, not a
+mystery.
+
+A **golden set** turns that into a gate. It is a small JSON baseline of cases, each paired
+with the `Outcome` the tribunal is expected to reach:
+
+```bash
+atf regression --golden examples/golden.json --max-drift 0.0
+```
+
+The runner re-runs each case and reports the **flips** — rulings that no longer match the
+baseline — as a `drift` fraction; the command exits non-zero when drift exceeds the budget,
+so a prompt or model change that quietly broke a verdict fails CI instead of slipping
+through. The comparison is on the verdict's `Outcome` **property, never the rationale text**:
+a model legitimately rewording its reasoning must not register as drift. When a change is
+intentional, `--update-baseline` re-runs and rewrites the expected outcomes as the new
+contract. Like everything else, the golden set is stdlib-only JSON and runs offline through
+the mock.
+
+```python
+from agentic_testing_framework import build_pipeline, load_golden, run_regression
+
+report = run_regression(load_golden("examples/golden.json"), build_pipeline())
+print(report.drift, report.passed)   # 0.0 True
+```
+
+---
+
 ## A test case, end to end
 
 You can hand the tribunal a result that already exists:
@@ -271,7 +308,7 @@ Evidence ledger:
   [clerk:url_validity#2] clerk:url_validity (info): No URLs found in output.
 ```
 
-Run the whole suite the same way — `pytest` (83 tests, all offline, no API key).
+Run the whole suite the same way — `pytest`, all offline with no API key.
 A tagged **PyPI** release is on the way; once it lands,
 `pip install agentic-testing-framework` will be all you need.
 

@@ -20,6 +20,7 @@ from ..core.case import Case
 from ..core.ledger import EvidenceLedger
 from ..core.models import DEFAULT_MODELS, Tier
 from ..core.types import Outcome, StageCost, Verdict
+from ..prompts import PROMPTS
 from ..providers.base import CountingProvider, Provider
 from ..providers.cache import CachingProvider
 from ..providers.mock import MockProvider
@@ -67,10 +68,22 @@ class Pipeline:
         verdict.gated = False
         verdict.stage_costs = self._stage_costs()
         verdict.findings = ledger.findings
+        verdict.prompt_versions = self._prompt_versions()
         return verdict
 
     def run_suite(self, cases: Sequence[Case]) -> list[Verdict]:
         return [self.run_case(case) for case in cases]
+
+    @staticmethod
+    def _prompt_versions() -> dict[str, int]:
+        """The prompt versions that produced this ruling — the auditability artifact.
+
+        Records the version of each judging stage the case actually ran through (the gated
+        path runs none of these, so it carries an empty map). Sourced from the registry, so
+        a prompt edit + version bump shows up directly on every subsequent verdict.
+        """
+
+        return {stage: PROMPTS[stage].version for stage in ("reviewer", "council", "orchestrator")}
 
     def _stage_costs(self) -> tuple[StageCost, ...]:
         # The clerk is deterministic — free, instant, never a model call.

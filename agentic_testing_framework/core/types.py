@@ -6,7 +6,7 @@ other module, so they must never import anything heavier than the standard libra
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -86,6 +86,14 @@ class Verdict:
     gated: bool = False
     stage_costs: tuple[StageCost, ...] = ()
     findings: tuple[Finding, ...] = ()
+    prompt_versions: dict[str, int] = field(default_factory=dict)
+    """Which versioned prompt produced this verdict: ``{stage: version}``.
+
+    Stamped by the pipeline (reviewer/council/orchestrator at minimum) from the prompt
+    registry, so a ruling records the exact prompt versions that judged it — the
+    auditability artifact that makes a drift after a prompt edit attributable. Appended
+    LAST with a default so positional construction of ``Verdict`` stays valid.
+    """
 
     @property
     def passed(self) -> bool:

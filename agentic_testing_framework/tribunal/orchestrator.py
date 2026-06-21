@@ -16,18 +16,14 @@ from ..core.llm import complete_json
 from ..core.parsing import JSONParseError
 from ..core.roles import ROLE_ORCHESTRATOR, role_header
 from ..core.types import Outcome, Verdict, outcome_from_str
+from ..prompts import get_prompt
 from ..providers.base import Provider
 
-ORCHESTRATOR_SYSTEM = (
-    "You are the presiding orchestrator of an evaluation tribunal. You ADJUDICATE the "
-    "evidence ledger -- you do NOT average scores or take a majority vote. Find where the "
-    "reviewers disagree, weigh whose EVIDENCE is stronger, and rule. A single "
-    "well-evidenced finding can outweigh several weakly-supported ones. Cite the finding "
-    "ids that drive your ruling. Base your ruling ONLY on the provided findings; if the "
-    'evidence is genuinely insufficient to decide, rule "inconclusive". '
-    "Respond with ONLY a JSON object of the form: "
-    '{"outcome": "pass|fail|inconclusive", "rationale": str, "cited_findings": [str]}.'
-)
+# Prompt-as-code: the orchestrator's system text is versioned in the registry. The registry
+# holds the text; this module only references it (no aggregation logic lives here — the
+# orchestrator adjudicates, it never averages). ``PROMPT_ID`` is stamped onto the verdict.
+PROMPT_ID = "orchestrator"
+ORCHESTRATOR_SYSTEM = get_prompt(PROMPT_ID).text
 
 
 class Orchestrator:
