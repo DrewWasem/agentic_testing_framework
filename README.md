@@ -157,6 +157,15 @@ makes `atf` exit 1 on a non-PASS, so a regression in the agent under test fails
 the job and blocks the merge. A copy-into-`.github/workflows/` recipe is in
 [`examples/github-actions-eval.yml`](examples/github-actions-eval.yml).
 
+`--show-cost` prints a per-stage rollup — calls, latency, and estimated dollars at
+default-tier list prices — so cost-by-construction is visible, not asserted: the
+clerk is free, the reviewer and council are priced at the cheap tier and only the
+orchestrator at the frontier tier, and a hard gate short-circuits at $0. `--cache DIR`
+adds a content-addressed on-disk cache of model responses, so re-running a suite over
+an unchanged target replays from disk — a cache hit still counts as the call the case
+needed but costs $0 and adds ~no latency, which the rollup shows directly. The dollar
+figure is an estimate (tokens approximated from the actual text), not a bill.
+
 ---
 
 ## A test case, end to end
