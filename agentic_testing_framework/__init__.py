@@ -24,6 +24,7 @@ from .generator.adversarial import (
 from .generator.mutation import Mutator
 from .generator.spec import GenSpec, SpecGenerator
 from .providers.base import CountingProvider, Provider
+from .providers.cache import CachingProvider
 from .providers.claude_cli import ClaudeCLIProvider
 from .providers.mock import MockProvider
 from .providers.registry import get_provider, register_provider
@@ -58,6 +59,7 @@ __all__ = [
     "AdaptiveLoop",
     "AdaptiveReport",
     "AdversarialGenerator",
+    "CachingProvider",
     "Case",
     "Check",
     "ClaudeCLIProvider",

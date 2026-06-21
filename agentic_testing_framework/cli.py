@@ -2,6 +2,9 @@
 
 ``atf run --example`` runs the README example end to end, fully offline, with no API key.
 ``--html``/``--junit`` write reports; ``--gate`` returns exit 1 on a non-PASS so CI blocks.
+``--cache DIR`` reuses model responses from disk; ``--show-cost`` prints a per-stage rollup
+of calls, latency, and estimated dollars (at default-tier list prices) — the cost-by-
+construction proof: the clerk is free, a hard gate spends $0, and a cache hit is $0.
 ``atf version`` prints the version.
 """
 
@@ -47,6 +50,27 @@ def _print_verdict(verdict: Verdict) -> None:
         print(f"{head}: {finding.message}")
 
 
+def _print_cost_rollup(verdict: Verdict) -> None:
+    """Print a per-stage cost rollup: stage, calls, latency, estimated dollars.
+
+    Wording stays honest — the dollar figure is an estimate at default-tier list prices, not
+    a bill. A gated case shows the short-circuit line: 0 model calls, $0.
+    """
+
+    print("Cost rollup (estimated at default-tier list prices):")
+    for cost in verdict.stage_costs:
+        print(
+            f"  {cost.stage:<13} calls={cost.llm_calls:<2} "
+            f"latency={cost.latency_s * 1000:7.2f}ms  est-cost=${cost.cost_usd:.6f}"
+        )
+    print(
+        f"  {'TOTAL':<13} calls={verdict.total_llm_calls:<2} "
+        f"latency={verdict.total_latency_s * 1000:7.2f}ms  est-cost=${verdict.total_cost_usd:.6f}"
+    )
+    if verdict.gated:
+        print("  hard gate short-circuited: 0 model calls, $0 spent")
+
+
 def _exit_code(verdict: Verdict, gate: bool) -> int:
     """Return ``1`` when gating is on and the ruling is not PASS, else ``0``.
 
@@ -90,6 +114,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Exit 1 when the verdict is not PASS (so CI fails the job)",
     )
+    run_parser.add_argument(
+        "--cache",
+        metavar="DIR",
+        help="Reuse model responses from a content-addressed on-disk cache in DIR",
+    )
+    run_parser.add_argument(
+        "--show-cost",
+        action="store_true",
+        help="Print a per-stage rollup of calls, latency, and estimated cost",
+    )
     sub.add_parser("version", help="Print the version")
 
     args = parser.parse_args(argv)
@@ -99,9 +133,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "run":
         if args.example:
             case = _example_case()
-            pipeline = build_pipeline()  # offline MockProvider — no API key needed
+            # offline MockProvider — no API key needed; --cache reuses responses from disk
+            pipeline = build_pipeline(cache_dir=args.cache)
             verdict = pipeline.run_case(case)
             _print_verdict(verdict)
+            if args.show_cost:
+                _print_cost_rollup(verdict)
             ok = True
             if args.html:
                 ok = _write_report(args.html, render_html(verdict, case=case), "HTML") and ok

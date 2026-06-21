@@ -1,9 +1,15 @@
 """The pipeline — wires Clerk -> Reviewer -> Council -> Orchestrator end to end.
 
 Gating: a failed hard gate returns a verdict immediately, before any model is called.
-Tiering: each LLM stage gets its own provider (wire a cheap model for the reviewer/council
-and a frontier model for the orchestrator). Cost: per-stage LLM call counts are recorded
-on the verdict via call-counting provider wrappers.
+Tiering: each LLM stage gets its own metering provider (the reviewer/council are priced at
+the CHEAP tier, the orchestrator at the FRONTIER tier). Cost: per-stage call count, latency,
+and estimated dollars are recorded on the verdict via the wrapper providers.
+
+Caching: pass ``cache_dir`` and the base provider is wrapped once in a content-addressed
+on-disk cache *inside* the per-stage meters, so a cache hit still counts as the call the
+case logically needed but costs $0 and adds ~0 latency — that is how the rollup demonstrates
+cost by construction. The dollar figure is an *estimate* at default-tier list prices (one
+provider runs every stage offline), reflecting the intended tiering, not an actual bill.
 """
 
 from __future__ import annotations
@@ -12,8 +18,10 @@ from collections.abc import Sequence
 
 from ..core.case import Case
 from ..core.ledger import EvidenceLedger
+from ..core.models import DEFAULT_MODELS, Tier
 from ..core.types import Outcome, StageCost, Verdict
 from ..providers.base import CountingProvider, Provider
+from ..providers.cache import CachingProvider
 from ..providers.mock import MockProvider
 from .checks import Check
 from .clerk import Clerk
@@ -65,11 +73,20 @@ class Pipeline:
         return [self.run_case(case) for case in cases]
 
     def _stage_costs(self) -> tuple[StageCost, ...]:
+        # The clerk is deterministic — free, instant, never a model call.
         costs = [StageCost("clerk", "deterministic", 0)]
         for stage in ("reviewer", "council", "orchestrator"):
             counter = self._counters.get(stage)
             if counter is not None:
-                costs.append(StageCost(stage, counter.name, counter.calls))
+                costs.append(
+                    StageCost(
+                        stage,
+                        counter.name,
+                        counter.calls,
+                        latency_s=counter.latency_s,
+                        cost_usd=counter.cost_usd,
+                    )
+                )
         return tuple(costs)
 
 
@@ -79,18 +96,32 @@ def build_pipeline(
     checks: Sequence[Check] | None = None,
     lenses: Sequence[str] | None = None,
     max_retries: int = 1,
+    cache_dir: str | None = None,
 ) -> Pipeline:
     """Build a ready-to-run pipeline. Defaults to a fully offline ``MockProvider``.
 
     Pass a real provider (or three, by constructing the components directly) to wire model
     tiering: a cheap model for the reviewer and council, a frontier model for the
     orchestrator.
+
+    ``cache_dir`` turns on a content-addressed on-disk cache shared by every stage: the base
+    provider is wrapped once, then each stage's meter wraps *that*, so a cache hit still
+    counts toward the call total but is charged $0 with ~0 latency.
+
+    Each stage's meter is priced at the model that stage *intends* to run on — the reviewer
+    and council at ``DEFAULT_MODELS[Tier.CHEAP]``, the orchestrator at
+    ``DEFAULT_MODELS[Tier.FRONTIER]``. With the offline mock (unpriced) every estimate is
+    $0; with a priced model the cost is estimated from the actual prompt/response text at
+    default-tier list prices. It is an estimate, not a bill.
     """
 
     base = provider if provider is not None else MockProvider()
-    reviewer_provider = CountingProvider(base)
-    council_provider = CountingProvider(base)
-    orchestrator_provider = CountingProvider(base)
+    shared = CachingProvider(base, cache_dir) if cache_dir else base
+    cheap = DEFAULT_MODELS[Tier.CHEAP]
+    frontier = DEFAULT_MODELS[Tier.FRONTIER]
+    reviewer_provider = CountingProvider(shared, model_id=cheap)
+    council_provider = CountingProvider(shared, model_id=cheap)
+    orchestrator_provider = CountingProvider(shared, model_id=frontier)
     pipeline = Pipeline(
         Clerk(checks),
         Reviewer(reviewer_provider, max_retries=max_retries),
