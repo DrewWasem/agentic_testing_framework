@@ -27,6 +27,7 @@ from .providers.base import CountingProvider, Provider
 from .providers.claude_cli import ClaudeCLIProvider
 from .providers.mock import MockProvider
 from .providers.registry import get_provider, register_provider
+from .reporting import render_html, render_junit
 from .targets.base import Target
 from .targets.cli import CliTarget
 from .targets.function import FunctionTarget
@@ -101,6 +102,8 @@ __all__ = [
     "get_provider",
     "injection_leak_check",
     "register_provider",
+    "render_html",
+    "render_junit",
     "run_target",
     "summarize",
 ]
