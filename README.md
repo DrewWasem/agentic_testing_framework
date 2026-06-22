@@ -89,22 +89,49 @@ frontier model to the orchestrator, the one place deep reasoning earns its cost.
 
 ## How it compares
 
-Most eval tools either string-match (brittle) or ask a single LLM "is this good?"
-(lenient and unauditable). The tribunal makes different design choices — and two
-of them appear to be unclaimed across the tools surveyed:
+Most agent-eval tools fall into two camps: assertion/string-matching harnesses
+(brittle — they break when wording changes) and "LLM-as-judge" tools that ask a
+single model "is this good?" (flexible, but lenient and hard to audit). The
+tribunal is a deliberate set of design choices that sit differently from both.
+Rather than a competitive scorecard — which invites an argument over any single
+cell — here are the choices, with where they seem common or uncommon as best I can
+tell from the tools I've looked at (promptfoo, DeepEval, Ragas, Inspect AI) and the
+LLM-as-judge literature, as of mid-2026. **If your tool does one of these and I've
+mischaracterized it, please open an issue — I'd rather be corrected than overclaim.**
 
-| | promptfoo | DeepEval | Ragas | Inspect AI | **ATF** |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Deterministic checks **ground** the judge (injected as fact) | – | – | – | – | **✓** |
-| Single shared **citable evidence ledger** → written rationale | per-assert | – | traces | – | **✓** |
-| Orchestrator **adjudicates, never averages** | – | – | vote | majority | **✓** |
-| Distinct-lens **panel** (not a self-ensemble) | – | – | – | – | **✓** |
-| Hard gate **short-circuits before any tokens are spent** | partial | partial | – | – | **✓** |
-| Offline + **standard-library-only, zero-dependency core** | – | – | – | – | **✓** |
+- **Deterministic checks *ground* the judge.** What plain code can establish —
+  counts, lengths, URL validity, pattern presence — is computed first and injected
+  into the judge's prompt as fact, so the model never re-derives (or mis-derives)
+  it. Several tools run deterministic assertions and model-graded checks as
+  independent, side-by-side signals; feeding the deterministic findings *into* the
+  judge's context as ground truth is the piece I haven't found elsewhere.
+- **The orchestrator adjudicates; it doesn't average.** Multi-judge setups are
+  increasingly common, but the ones I've seen reduce the panel to a number — a
+  majority vote or a mean (e.g. the "panel of judges" line of work). Here the final
+  stage reads the whole disagreement and rules on it, because *where the reviewers
+  disagreed* is the signal most worth keeping.
+- **One shared, citable evidence ledger.** Every check and reviewer writes a
+  structured finding, and the verdict must cite the findings that drove it. Tracing
+  and observability tools show you *what happened*; the ledger is built so a verdict
+  is reconstructible from *why*.
+- **A panel of distinct lenses, not a self-ensemble** — reviewers with different
+  briefs (accuracy, completeness, clarity, an adversarial skeptic), not one prompt
+  run N times.
+- **Cheap by construction** — free deterministic checks first, a hard gate that
+  short-circuits before a token is spent, cheap models for the reviewers, a frontier
+  model only for the orchestrator.
+- **Offline and dependency-free** — a standard-library-only core that runs end to
+  end against a mock with no API key.
 
-This is a capability sketch, not a benchmark — each of those tools does plenty
-that this one doesn't (managed datasets, large metric libraries, dashboards). The
-point is the *shape* of the evaluation, not a feature count.
+What the established tools have that this one doesn't: managed datasets and
+experiment tracking, large built-in metric libraries, hosted dashboards, and years
+of real-world use. This is a young project with a specific point of view, not a
+replacement for them. Whether these choices actually produce *better* verdicts —
+not just a different shape — is an empirical question this section can't settle by
+assertion. The repo ships a meta-evaluation harness (`atf metaeval`) that scores the
+tribunal against a single-judge baseline on a labeled set; the numbers only mean
+something against a *real* judge (the offline mock can't tell good from bad), so run
+it yourself before believing any claim — including mine.
 
 ---
 

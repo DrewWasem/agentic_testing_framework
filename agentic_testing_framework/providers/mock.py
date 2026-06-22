@@ -14,6 +14,7 @@ import re
 from collections.abc import Callable
 
 from ..core.roles import (
+    ROLE_BASELINE,
     ROLE_COUNCIL,
     ROLE_GENERATOR,
     ROLE_METRIC,
@@ -89,6 +90,25 @@ def _auto_metric(system: str, prompt: str) -> str:
     return json.dumps(payload)
 
 
+def _auto_baseline(prompt: str) -> str:
+    """A naive single-judge ruling for the offline path: lenient PASS by default.
+
+    The single-judge baseline is the unstructured judge ATF claims to beat, so its offline
+    stand-in is deliberately lenient — it rules PASS unless the output is plainly empty. That
+    is the failure mode meta-eval is built to expose: a confident judge that waves through
+    subtly-wrong output. Tests that need a particular baseline ruling script it via
+    ``responses=``/``handler=``; this fallthrough only keeps an unconfigured run completing.
+    """
+
+    out_match = _OUTPUT_BLOCK.search(prompt)
+    output = out_match.group(1).strip() if out_match else ""
+    if not output or output == "(empty output)":
+        return json.dumps({"verdict": "fail", "reason": "Offline mock baseline: empty output."})
+    return json.dumps(
+        {"verdict": "pass", "reason": "Offline mock baseline: output looks plausible."}
+    )
+
+
 def _auto_response(system: str, prompt: str) -> str:
     """A valid, schema-correct canned response for whichever stage is calling."""
 
@@ -105,6 +125,8 @@ def _auto_response(system: str, prompt: str) -> str:
         return json.dumps({"cases": []})
     if role == ROLE_METRIC:
         return _auto_metric(system, prompt)
+    if role == ROLE_BASELINE:
+        return _auto_baseline(prompt)
     return json.dumps({"ok": True})
 
 
