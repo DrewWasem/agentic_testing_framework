@@ -17,7 +17,10 @@ from collections.abc import Sequence
 from . import __version__
 from .core.case import Case
 from .core.types import Outcome, Verdict
+from .metaeval import MetaEvalReport, load_labeled, render_markdown, run_metaeval
 from .metrics import MetricReport, run_metrics
+from .providers.base import Provider
+from .providers.claude_cli import ClaudeCLIProvider
 from .providers.mock import MockProvider
 from .regression import RegressionReport, load_golden, run_regression, update_baseline
 from .reporting import render_html, render_junit
@@ -117,6 +120,77 @@ def _print_regression_report(report: RegressionReport) -> None:
     )
 
 
+def _build_judge_provider(judge: str, model: str | None) -> Provider:
+    """Build the judge/generator backend for a command: offline mock or the real Claude CLI.
+
+    ``mock`` (the default everywhere) keeps a command offline and free. ``claude-cli`` returns
+    a :class:`ClaudeCLIProvider` so the owner can do a real live run — this is the ONLY path
+    that reaches a real model, and it is never used by a test.
+    """
+
+    if judge == "claude-cli":
+        return ClaudeCLIProvider(model=model)
+    return MockProvider()
+
+
+def _print_metaeval_report(report: MetaEvalReport) -> None:
+    """Print the ATF-vs-baseline comparison table and an honest one-line verdict.
+
+    The table mirrors the committed Markdown report: agreement, Cohen's kappa, and fail-class
+    precision/recall/F1 for each judge, then the per-case rulings, then the bottom line —
+    "ATF agreed with X/N vs baseline Y/N" — stated plainly, win or lose.
+    """
+
+    atf, base = report.atf, report.baseline
+    print(f"Meta-evaluation over {report.size} hand-labeled case(s):")
+    header = (
+        f"  {'judge':<22} {'agree':>13}  {'kappa':>7}  {'fail-P':>7}  {'fail-R':>7}  {'fail-F1':>7}"
+    )
+    print(header)
+    for s in (atf, base):
+        agree = f"{s.raw_agreement:.3f} ({s.agreements}/{s.total})"
+        print(
+            f"  {s.label:<22} {agree:>13}  {s.cohens_kappa:>7.3f}  "
+            f"{s.fail_precision:>7.3f}  {s.fail_recall:>7.3f}  {s.fail_f1:>7.3f}"
+        )
+    print("  per-case:")
+    for row in report.rows:
+        atf_mark = "ok  " if row.atf_correct else "MISS"
+        base_mark = "ok  " if row.baseline_correct else "MISS"
+        print(
+            f"    {row.case_id:<28} gold={row.gold.value:<4} "
+            f"atf={row.atf.value:<4}[{atf_mark}] base={row.baseline.value:<4}[{base_mark}]"
+        )
+    print(
+        f"  VERDICT: ATF agreed with {atf.agreements}/{atf.total} "
+        f"vs baseline {base.agreements}/{base.total} "
+        f"(kappa {atf.cohens_kappa:.3f} vs {base.cohens_kappa:.3f})"
+    )
+
+
+def _run_metaeval_command(dataset_path: str, judge: str, model: str | None, out: str | None) -> int:
+    """Score the tribunal against the single-judge baseline on a labeled dataset.
+
+    Builds both the ATF pipeline and the baseline provider on the chosen backend (``mock`` is
+    offline and the test path; ``claude-cli`` is the owner's real run), runs the meta-eval,
+    prints the comparison table, and writes the Markdown report to ``--out`` if given. Exits 0;
+    a bad dataset path reports cleanly and exits 2.
+    """
+
+    try:
+        labeled = load_labeled(dataset_path)
+    except (OSError, ValueError) as exc:
+        print(f"error: could not load dataset {dataset_path}: {exc}", file=sys.stderr)
+        return 2
+    atf_pipeline = build_pipeline(_build_judge_provider(judge, model))
+    baseline_provider = _build_judge_provider(judge, model)
+    report = run_metaeval(labeled, atf_pipeline=atf_pipeline, baseline_provider=baseline_provider)
+    _print_metaeval_report(report)
+    if out:
+        _write_report(out, render_markdown(report), "meta-eval")
+    return 0
+
+
 def _run_regression_command(golden_path: str, max_drift: float, update: bool) -> int:
     """Run (or rewrite) a golden set and return a CI exit code.
 
@@ -199,6 +273,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="NAMES",
         help="Comma-separated LLM-judge metrics to also run (e.g. g_eval,faithfulness,toxicity)",
     )
+    run_parser.add_argument(
+        "--judge",
+        choices=("mock", "claude-cli"),
+        default="mock",
+        help="Judge backend: mock (offline default) or claude-cli (a real Claude run)",
+    )
+    run_parser.add_argument(
+        "--model",
+        metavar="MODEL",
+        help="Model id for the claude-cli judge (e.g. claude-opus-4-8); ignored for mock",
+    )
+    meta_parser = sub.add_parser(
+        "metaeval", help="Score the tribunal against a single-judge baseline on labeled data"
+    )
+    meta_parser.add_argument(
+        "--dataset", metavar="PATH", required=True, help="Path to the hand-labeled dataset JSON"
+    )
+    meta_parser.add_argument(
+        "--judge",
+        choices=("mock", "claude-cli"),
+        default="mock",
+        help="Judge backend for BOTH judges: mock (offline default) or claude-cli (real)",
+    )
+    meta_parser.add_argument(
+        "--model",
+        metavar="MODEL",
+        help="Model id for the claude-cli judge (e.g. claude-opus-4-8); ignored for mock",
+    )
+    meta_parser.add_argument(
+        "--out", metavar="PATH", help="Write the Markdown comparison report to PATH"
+    )
     reg_parser = sub.add_parser(
         "regression", help="Re-run a golden set and report verdict drift vs. the baseline"
     )
@@ -223,13 +328,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "version":
         print(__version__)
         return 0
+    if args.command == "metaeval":
+        return _run_metaeval_command(args.dataset, args.judge, args.model, args.out)
     if args.command == "regression":
         return _run_regression_command(args.golden, args.max_drift, args.update_baseline)
     if args.command == "run":
         if args.example:
             case = _example_case()
-            # offline MockProvider — no API key needed; --cache reuses responses from disk
-            pipeline = build_pipeline(cache_dir=args.cache)
+            # Default judge is the offline mock (no API key); --judge claude-cli does a real
+            # Claude run. --cache reuses responses from disk regardless of backend.
+            judge = _build_judge_provider(args.judge, args.model)
+            pipeline = build_pipeline(judge, cache_dir=args.cache)
             verdict = pipeline.run_case(case)
             _print_verdict(verdict)
             if args.show_cost:
