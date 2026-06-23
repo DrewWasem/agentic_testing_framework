@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Testing Framework — live tribunal run (Claude Haiku 4.5)</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+      sans-serif;
+    line-height: 1.5; margin: 0; padding: 2rem; color: #1a1a1a; background: #fafafa;
+  }
+  main { max-width: 56rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid #ddd;
+       padding-bottom: 0.35rem; }
+  h3 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: #333; }
+  .outcome { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 0.4rem;
+             font-weight: 700; letter-spacing: 0.03em; }
+  .outcome-pass { background: #e7f6ec; color: #186a3b; }
+  .outcome-fail { background: #fdecea; color: #a01a0e; }
+  .outcome-inconclusive { background: #fff4e5; color: #8a5300; }
+  .meta { color: #666; font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .rationale { background: #fff; border: 1px solid #e2e2e2; border-left: 4px solid #888;
+               border-radius: 0.4rem; padding: 0.75rem 1rem; white-space: pre-wrap; }
+  ul.cited { list-style: none; padding: 0; margin: 0.5rem 0; }
+  ul.cited li { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo,
+                Consolas, monospace; font-size: 0.85rem; background: #eef; color: #224;
+                border-radius: 0.3rem; padding: 0.15rem 0.5rem; margin: 0.15rem 0.3rem 0.15rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.5rem 0; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #e6e6e6; }
+  th { color: #555; font-weight: 600; }
+  .finding { background: #fff; border: 1px solid #e2e2e2; border-radius: 0.4rem;
+             padding: 0.6rem 0.85rem; margin: 0.5rem 0; }
+  .finding-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+  .fid { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         font-size: 0.8rem; color: #555; }
+  .sev { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+         font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 0.3rem; }
+  .sev-info { background: #eef; color: #335; }
+  .sev-low { background: #eef6ff; color: #1f5a8a; }
+  .sev-medium { background: #fff4e5; color: #8a5300; }
+  .sev-high { background: #fdecea; color: #a01a0e; }
+  .sev-critical { background: #a01a0e; color: #fff; }
+  .pf { font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 0.3rem; }
+  .pf-pass { background: #e7f6ec; color: #186a3b; }
+  .pf-fail { background: #fdecea; color: #a01a0e; }
+  .finding-msg { margin: 0.35rem 0 0; }
+  .evidence { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f4f4f4;
+              border-radius: 0.3rem; font-family: ui-monospace, SFMono-Regular, Menlo,
+              Consolas, monospace; font-size: 0.82rem; white-space: pre-wrap; }
+  .evidence-label { color: #888; font-size: 0.75rem; text-transform: uppercase;
+                    letter-spacing: 0.04em; }
+  footer { color: #999; font-size: 0.8rem; margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Agentic Testing Framework — live tribunal run (Claude Haiku 4.5)</h1>
+<p><span class="outcome outcome-fail">FAIL</span></p>
+<p class="meta">Model calls: 6 &middot; gated: no &middot; findings: 18</p>
+</header>
+<h2>Case</h2>
+<table>
+<tr><th>Input</th><td>Write a Python function median(nums) that returns the median of a list of numbers.</td></tr>
+<tr><th>Expectation</th><td>A correct median function for both odd- and even-length lists.</td></tr>
+<tr><th>Output</th><td>def median(nums):
+    nums.sort()
+    return nums[len(nums) // 2]</td></tr>
+</table>
+<h3>Criteria</h3>
+<ul>
+<li>Correct for odd-length lists</li>
+<li>Correct for even-length lists</li>
+<li>Valid Python</li>
+</ul>
+<h2>Rationale</h2>
+<div class="rationale">The function fails the stated expectation of correctness &#x27;for both odd- and even-length lists.&#x27; Multiple independent reviewers and council lenses converge on a critical failure: the function handles odd-length lists correctly but systematically fails for even-length lists. It returns only the upper-middle element instead of averaging the two middle elements. For [1, 2, 3, 4], the function returns 3 (nums[2]) when the correct median is 2.5. This is a factual, reproducible violation of the mathematical definition of median. The expectation explicitly requires both cases; this solution is incomplete.</div>
+<h2>Cited findings</h2>
+<ul class='cited'>
+<li>council:accuracy#7</li>
+<li>council:completeness#10</li>
+<li>council:adversarial#16</li>
+</ul>
+<h2>Stage costs</h2>
+<table>
+<tr><th>stage</th><th>provider</th><th>llm_calls</th><th>latency_s</th><th>cost_usd</th></tr>
+<tr><td>clerk</td><td>deterministic</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>reviewer</td><td>claude-cli</td><td>1</td><td>20.990937625057995</td><td>0.002155</td></tr>
+<tr><td>council</td><td>claude-cli</td><td>4</td><td>102.43895562272519</td><td>0.009576250000000001</td></tr>
+<tr><td>orchestrator</td><td>claude-cli</td><td>1</td><td>12.768386417068541</td><td>0.012098750000000002</td></tr>
+</table>
+<h2>Evidence ledger</h2>
+<h3>clerk:word_count</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:word_count#0</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>Output word count = 7.</p></div>
+<h3>clerk:sentence_length</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:sentence_length#1</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>Average sentence length = 3.5 words across 2 sentence(s).</p></div>
+<h3>clerk:url_validity</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:url_validity#2</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>No URLs found in output.</p></div>
+<h3>reviewer</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>reviewer#4</span><span class='sev sev-critical'>critical</span><span class='pf pf-fail'>fail</span><span class='meta'>criterion: Correct for even-length lists</span></div><p class='finding-msg'>FAILED. The function returns only the upper-middle element instead of averaging the two middle elements. For a 4-element list [1, 2, 3, 4], it returns nums[2] = 3, but the correct median is (2 + 3) / 2 = 2.5. This violates the mathematical definition of median for even-length lists.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Test case: [1, 2, 3, 4] → function returns 3; correct answer is 2.5. Test case: [1, 2] → function returns 2; correct answer is 1.5.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>reviewer#3</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Correct for odd-length lists</span></div><p class='finding-msg'>Works correctly. For [1, 2, 3], returns nums[1] = 2, which is correct.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Odd-length lists: len(nums) // 2 correctly indexes the middle element.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>reviewer#5</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Syntax is valid. No type errors or parsing issues.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Code contains valid function definition, method call (nums.sort()), and indexing operation.</div></div>
+<h3>council:accuracy</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:accuracy#7</span><span class='sev sev-critical'>critical</span><span class='pf pf-fail'>fail</span><span class='meta'>criterion: Correct for even-length lists</span></div><p class='finding-msg'>Function violates the mathematical definition of median for even-length lists. It returns only the upper-middle element instead of the average of the two middle elements.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3, 4], len=4, len//2=2 → returns nums[2]=3. The correct median is (nums[1] + nums[2])/2 = (2+3)/2 = 2.5. The function returns 3, a factually incorrect result.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:accuracy#6</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Correct for odd-length lists</span></div><p class='finding-msg'>Function correctly identifies and returns the middle element for odd-length lists.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3], len=3, len//2=1 → returns nums[1]=2, which is the correct median. This logic holds for all odd-length inputs.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:accuracy#8</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Code is syntactically valid and will execute without parse errors.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>The function definition, method calls (.sort()), and integer division (//) are all valid Python 3 syntax.</div></div>
+<h3>council:completeness</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:completeness#10</span><span class='sev sev-critical'>critical</span><span class='pf pf-fail'>fail</span><span class='meta'>criterion: Correct for even-length lists</span></div><p class='finding-msg'>Even-length median handling is missing. The function returns only the upper-middle element without averaging the two middle elements.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3, 4], the function returns nums[2] = 3, but the correct median is (2 + 3) / 2 = 2.5. The required behavior for even-length lists is not present.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:completeness#9</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Correct for odd-length lists</span></div><p class='finding-msg'>Odd-length median is correctly implemented. The function returns the middle element.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3], returns nums[1] = 2, which is the correct median.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:completeness#11</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>The syntax is valid Python with no parsing errors.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Function definition, method calls, and indexing are all syntactically correct.</div></div>
+<h3>council:clarity</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#13</span><span class='sev sev-critical'>critical</span><span class='pf pf-fail'>fail</span><span class='meta'>criterion: Correct for even-length lists</span></div><p class='finding-msg'>The code is clear in structure, but fails the correctness requirement. Reviewer #4 found that it returns only the upper-middle element instead of averaging the two middle elements, as required by the standard median definition.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3, 4], the code returns nums[2] = 3, but the correct median is (2 + 3) / 2 = 2.5. The function never averages the two middle values for even-length lists.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#12</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Correct for odd-length lists</span></div><p class='finding-msg'>Code clarity is sufficient for this requirement. The logic is transparent and simple: sort, then return the middle element. Reviewer #3 confirmed correctness for odd-length lists.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3], the function returns nums[1] = 2, which is correct. The code structure makes this behavior clear and easy to verify.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#14</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Syntax is valid and the code is readable. No type errors or parsing issues. Reviewer #5 confirmed valid Python.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Function definition, list.sort() method call, and return statement are all syntactically correct and idiomatically clear.</div></div>
+<h3>council:adversarial</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#16</span><span class='sev sev-critical'>critical</span><span class='pf pf-fail'>fail</span><span class='meta'>criterion: Correct for even-length lists</span></div><p class='finding-msg'>Function fails the mathematical definition of median for even-length lists. It returns only the upper-middle element instead of averaging the two middle elements. For any even-length list, the output is systematically wrong.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3, 4] (length 4), nums[len//2] = nums[2] = 3, but the correct median is (nums[1] + nums[2]) / 2 = (2 + 3) / 2 = 2.5. The expectation explicitly requires correctness &#x27;for both odd- and even-length lists.&#x27; This violates criterion 2.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#15</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Correct for odd-length lists</span></div><p class='finding-msg'>Correctly returns the middle element for odd-length lists.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For [1, 2, 3], returns nums[1] = 2, which is correct.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#17</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Syntax is valid and code parses without errors.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>No parsing or type errors.</div></div>
+<footer>Generated by the Agentic Testing Framework tribunal.</footer>
+</main>
+</body>
+</html>

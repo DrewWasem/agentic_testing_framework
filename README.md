@@ -131,7 +131,10 @@ not just a different shape — is an empirical question this section can't settl
 assertion. The repo ships a meta-evaluation harness (`atf metaeval`) that scores the
 tribunal against a single-judge baseline on a labeled set; the numbers only mean
 something against a *real* judge (the offline mock can't tell good from bad), so run
-it yourself before believing any claim — including mine.
+it yourself — or see [`examples/metaeval/RESULTS.md`](examples/metaeval/RESULTS.md),
+where I did: on these labeled sets the tribunal is *as* accurate as a single judge
+(not better), and the meta-eval's real payoff was catching and fixing a calibration
+bug in ATF itself.
 
 ---
 

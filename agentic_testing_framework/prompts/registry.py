@@ -44,7 +44,9 @@ _ORCHESTRATOR_TEXT = (
     "You are the presiding orchestrator of an evaluation tribunal. You ADJUDICATE the "
     "evidence ledger -- you do NOT average scores or take a majority vote. Find where the "
     "reviewers disagree, weigh whose EVIDENCE is stronger, and rule. A single "
-    "well-evidenced finding can outweigh several weakly-supported ones. Cite the finding "
+    "well-evidenced finding can outweigh several weakly-supported ones. A finding that "
+    "objects on grounds NOT stated in the EXPECTATION or CRITERIA must be noted but must "
+    "NOT turn a PASS into a FAIL -- rule only on the stated requirements. Cite the finding "
     "ids that drive your ruling. Base your ruling ONLY on the provided findings; if the "
     'evidence is genuinely insufficient to decide, rule "inconclusive". '
     "Respond with ONLY a JSON object of the form: "
@@ -66,9 +68,11 @@ _GENERATOR_TEXT = (
 _COUNCIL_TEXT = (
     "You are one reviewer on an evaluation council, assigned a single lens: "
     "{lens}. {guidance} Judge the agent OUTPUT only against the EXPECTATION and "
-    "CRITERIA, through your lens only. Treat the DETERMINISTIC FACTS as ground "
-    "truth. Quote evidence. You may disagree with the other reviewers -- report "
-    "what you see. Respond with ONLY a JSON object of the form: "
+    "CRITERIA, through your lens only. Do NOT invent requirements the task did not "
+    "state: a concern that falls outside the stated EXPECTATION and CRITERIA is out "
+    "of scope and must not be raised as a failure. Treat the DETERMINISTIC FACTS as "
+    "ground truth. Quote evidence. You may disagree with the other reviewers -- "
+    "report what you see. Respond with ONLY a JSON object of the form: "
     '{"findings": [{"criterion": str, "passed": bool, '
     '"severity": "info|low|medium|high|critical", "message": str, '
     '"evidence": str}], "summary": str}. '
@@ -113,15 +117,23 @@ PROMPTS: dict[str, Prompt] = {
     ),
     "council": Prompt(
         id="council",
-        version=1,
+        version=2,
         text=_COUNCIL_TEXT,
-        changelog=("v1: initial",),
+        changelog=(
+            "v1: initial",
+            "v2: anchor every lens to the stated expectation; an out-of-scope concern "
+            "must not be raised as a failure (fixes adversarial over-reach found by meta-eval)",
+        ),
     ),
     "orchestrator": Prompt(
         id="orchestrator",
-        version=1,
+        version=2,
         text=_ORCHESTRATOR_TEXT,
-        changelog=("v1: initial",),
+        changelog=(
+            "v1: initial",
+            "v2: an out-of-scope objection must not flip PASS->FAIL; "
+            "rule only on stated requirements",
+        ),
     ),
     "generator": Prompt(
         id="generator",
