@@ -7,6 +7,7 @@ provider seam and are imported lazily, only when a real backend is actually used
 
 from __future__ import annotations
 
+from .api import evaluate
 from .core.case import Case
 from .core.finding import Finding
 from .core.ledger import EvidenceLedger
@@ -162,6 +163,7 @@ __all__ = [
     "cohens_kappa",
     "confusion_matrix",
     "default_checks",
+    "evaluate",
     "gaming_pipeline",
     "get_metric",
     "get_prompt",

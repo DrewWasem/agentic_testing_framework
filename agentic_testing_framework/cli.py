@@ -1,17 +1,20 @@
 """The ``atf`` command-line entry point.
 
 ``atf run --example`` runs the README example end to end, fully offline, with no API key.
-``--html``/``--junit`` write reports; ``--gate`` returns exit 1 on a non-PASS so CI blocks.
-``--cache DIR`` reuses model responses from disk; ``--show-cost`` prints a per-stage rollup
-of calls, latency, and estimated dollars (at default-tier list prices) — the cost-by-
-construction proof: the clerk is free, a hard gate spends $0, and a cache hit is $0.
-``atf version`` prints the version.
+``atf run --input … --output … --expectation …`` (or ``--case-file case.json``) grades a case
+of your own through the same tribunal. ``--html``/``--junit`` write reports; ``--open`` opens
+the HTML in a browser; ``--gate`` returns exit 1 on a non-PASS so CI blocks. ``--cache DIR``
+reuses model responses from disk; ``--show-cost`` prints a per-stage rollup of calls, latency,
+and estimated dollars (at default-tier list prices) — the cost-by-construction proof: the
+clerk is free, a hard gate spends $0, and a cache hit is $0. ``atf version`` prints the version.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+import webbrowser
 from collections.abc import Sequence
 
 from . import __version__
@@ -252,6 +255,94 @@ def _write_report(path: str, content: str, kind: str) -> bool:
     return True
 
 
+# Indirection so a test can monkeypatch the browser launch (``cli._open``) and assert the
+# path it was handed without actually opening a window — keeps ``--open`` CI-safe.
+_open = webbrowser.open
+
+
+def _open_report(path: str) -> None:
+    """Open a written report in the default browser (guarded so tests don't launch one)."""
+
+    _open(f"file://{path}")
+    print(f"Opened {path} in the default browser")
+
+
+def _load_case_file(path: str) -> Case | None:
+    """Load a single case from a JSON file: ``{input, output?, expectation, criteria?}``.
+
+    Returns ``None`` and reports cleanly to stderr on a missing/unreadable/malformed file or a
+    payload missing the required ``input``/``expectation``, so a bad ``--case-file`` exits
+    non-zero without a traceback — the same contract as :func:`_write_report`.
+    """
+
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except OSError as exc:
+        print(f"error: could not read case file {path}: {exc}", file=sys.stderr)
+        return None
+    except json.JSONDecodeError as exc:
+        print(f"error: case file {path} is not valid JSON: {exc}", file=sys.stderr)
+        return None
+    if not isinstance(data, dict):
+        print(f"error: case file {path} must be a JSON object", file=sys.stderr)
+        return None
+    # Validate field TYPES, not just presence: a non-string value would otherwise reach a
+    # downstream check and crash with a traceback (e.g. the clerk's ``(output or "").split()``).
+    input_ = data.get("input")
+    expectation = data.get("expectation")
+    output = data.get("output")
+    criteria = data.get("criteria")
+    if not isinstance(input_, str) or not isinstance(expectation, str):
+        print(
+            f"error: case file {path} needs string 'input' and 'expectation'",
+            file=sys.stderr,
+        )
+        return None
+    if output is not None and not isinstance(output, str):
+        print(f"error: case file {path}: 'output' must be a string or omitted", file=sys.stderr)
+        return None
+    if criteria is not None and not (
+        isinstance(criteria, list) and all(isinstance(c, str) for c in criteria)
+    ):
+        print(f"error: case file {path}: 'criteria' must be a list of strings", file=sys.stderr)
+        return None
+    return Case(
+        input=input_,
+        expectation=expectation,
+        output=output,
+        criteria=tuple(criteria or ()),
+    )
+
+
+def _case_from_args(args: argparse.Namespace) -> Case | None:
+    """Build the case the ``run`` command will judge, or ``None`` if there is nothing to run.
+
+    Resolution order: ``--example`` (the built-in case) → ``--case-file`` (load from JSON) →
+    inline ``--input``/``--output``/``--expectation`` flags. The inline form requires at least
+    ``--expectation`` and ``--output`` (an empty ``--output`` is still a runnable, judgeable
+    result); a partial inline case fails through ``argparse`` rather than silently doing nothing.
+    """
+
+    if args.example:
+        return _example_case()
+    if args.case_file:
+        return _load_case_file(args.case_file)
+    if args.expectation is not None or args.output is not None or args.input is not None:
+        if args.expectation is None or args.output is None:
+            args._run_parser.error(
+                "an inline case needs at least --output and --expectation "
+                "(or use --case-file / --example)"
+            )
+        return Case(
+            input=args.input or "",
+            expectation=args.expectation,
+            output=args.output,
+            criteria=tuple(args.criteria or ()),
+        )
+    return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="atf", description="Agentic Testing Framework")
     sub = parser.add_subparsers(dest="command")
@@ -294,6 +385,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="MODEL",
         help="Model id for the claude-cli judge (e.g. claude-opus-4-8); ignored for mock",
     )
+    run_parser.add_argument(
+        "--input", metavar="TEXT", help="The task given to the agent (for an inline case)"
+    )
+    run_parser.add_argument(
+        "--output", metavar="TEXT", help="The agent's result to judge (for an inline case)"
+    )
+    run_parser.add_argument(
+        "--expectation",
+        metavar="TEXT",
+        help="Plain-English description of a good result (for an inline case)",
+    )
+    run_parser.add_argument(
+        "--criteria",
+        metavar="TEXT",
+        action="append",
+        help="A criterion to grade one by one; repeat the flag for several",
+    )
+    run_parser.add_argument(
+        "--case-file",
+        metavar="PATH",
+        help='Load a single case from JSON: {"input":…, "output":…, "expectation":…, '
+        '"criteria":[…]} (output/criteria optional)',
+    )
+    run_parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the HTML report in the default browser after writing it (requires --html)",
+    )
+    # Stash the run subparser so _case_from_args can raise a clean argparse error for a
+    # partial inline case without main having to thread the parser into the helper.
+    run_parser.set_defaults(_run_parser=run_parser)
     meta_parser = sub.add_parser(
         "metaeval", help="Score the tribunal against a single-judge baseline on labeled data"
     )
@@ -343,31 +465,44 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "regression":
         return _run_regression_command(args.golden, args.max_drift, args.update_baseline)
     if args.command == "run":
-        if args.example:
-            case = _example_case()
-            # Default judge is the offline mock (no API key); --judge claude-cli does a real
-            # Claude run. --cache reuses responses from disk regardless of backend.
-            judge = _build_judge_provider(args.judge, args.model)
-            pipeline = build_pipeline(judge, cache_dir=args.cache)
-            verdict = pipeline.run_case(case)
-            _print_verdict(verdict)
-            if args.show_cost:
-                _print_cost_rollup(verdict)
-            if args.metrics:
-                names = [n.strip() for n in args.metrics.split(",") if n.strip()]
-                # A separate offline provider — metrics are opt-in and standalone, so the
-                # tribunal's six model calls above are unaffected by running them.
-                report = run_metrics(case, MockProvider(), metrics=names)
-                _print_metric_report(report)
-            ok = True
-            if args.html:
-                ok = _write_report(args.html, render_html(verdict, case=case), "HTML") and ok
-            if args.junit:
-                ok = _write_report(args.junit, render_junit([("example", verdict)]), "JUnit") and ok
-            if not ok:
-                return 1
-            return _exit_code(verdict, args.gate)
-        run_parser.error("nothing to run; try: atf run --example")
+        case = _case_from_args(args)
+        if case is None:
+            # A --case-file that failed to load has already reported to stderr; that is a
+            # non-zero exit, not the "nothing to run" hint.
+            if args.case_file:
+                return 2
+            run_parser.error(
+                "nothing to run; try: atf run --example, "
+                "atf run --input … --output … --expectation …, or atf run --case-file case.json"
+            )
+        if args.open and not args.html:
+            run_parser.error("--open needs an HTML report to open; pass --html PATH too")
+        # Default judge is the offline mock (no API key); --judge claude-cli does a real
+        # Claude run. --cache reuses responses from disk regardless of backend. The case
+        # came from --example, --case-file, or inline flags — it flows the same path from here.
+        judge = _build_judge_provider(args.judge, args.model)
+        pipeline = build_pipeline(judge, cache_dir=args.cache)
+        verdict = pipeline.run_case(case)
+        _print_verdict(verdict)
+        if args.show_cost:
+            _print_cost_rollup(verdict)
+        if args.metrics:
+            names = [n.strip() for n in args.metrics.split(",") if n.strip()]
+            # A separate offline provider — metrics are opt-in and standalone, so the
+            # tribunal's six model calls above are unaffected by running them.
+            report = run_metrics(case, MockProvider(), metrics=names)
+            _print_metric_report(report)
+        name = "example" if args.example else "case"
+        ok = True
+        if args.html:
+            ok = _write_report(args.html, render_html(verdict, case=case), "HTML") and ok
+            if ok and args.open:
+                _open_report(args.html)
+        if args.junit:
+            ok = _write_report(args.junit, render_junit([(name, verdict)]), "JUnit") and ok
+        if not ok:
+            return 1
+        return _exit_code(verdict, args.gate)
     parser.print_help()
     return 0
 

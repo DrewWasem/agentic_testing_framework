@@ -308,6 +308,41 @@ agent, and report where it held and where it broke.
 
 ---
 
+## Evaluate your own case
+
+Building a `Case`, a pipeline, and running it is three steps. For the common
+"I have an output, judge it against this expectation" case, `evaluate` collapses
+that to one call — offline through the mock by default, no API key:
+
+```python
+from agentic_testing_framework import evaluate
+
+verdict = evaluate(
+    "Write a SQL query for total revenue per region in 2025.",
+    "SELECT region, SUM(amount) AS revenue FROM orders WHERE year=2025 GROUP BY region;",
+    "A correct, runnable SQL query answering the question.",
+    criteria=["Groups by region", "Filters to 2025"],   # optional
+)
+print(verdict.outcome, verdict.rationale)
+```
+
+It returns the same `Verdict` — full evidence ledger and all — that the pipeline
+produces. Pass a real `provider` for a live run, or override `checks` / `lenses`.
+
+The CLI does the same from the shell, no Python required:
+
+```bash
+atf run --input "What is 2+2?" --output "4" --expectation "States the answer is 4"
+```
+
+Repeat `--criteria` for several, or load a whole case from JSON with
+`--case-file case.json` (`{"input":…, "output":…, "expectation":…, "criteria":[…]}`).
+Add `--html report.html --open` to write the self-contained report and open it in
+your browser; `--gate` exits non-zero on a non-PASS so CI can fail on it. The judge
+defaults to the offline mock; `--judge claude-cli --model …` runs a real Claude.
+
+---
+
 ## Status
 
 **v0.1.0 — the whole architecture runs today, offline and free.** The full tribunal
