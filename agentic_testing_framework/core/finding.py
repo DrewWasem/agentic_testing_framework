@@ -27,6 +27,9 @@ class Finding:
         criterion: the criterion this finding grades, if any.
         id: assigned by the ledger on append (``"<source>#<n>"``).
         metadata: free-form structured extras (e.g. ``{"gate": True, "count": 42}``).
+        advisory: a true observation beyond the stated expectation/criteria; recorded and
+            surfaced but never counts toward the verdict. An advisory finding carries
+            ``passed=None`` by convention -- it neither passes nor fails a stated criterion.
     """
 
     source: str
@@ -37,6 +40,7 @@ class Finding:
     criterion: str | None = None
     id: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    advisory: bool = False
 
     def with_id(self, finding_id: str) -> Finding:
         """Return a copy with ``id`` set (used by the ledger on append)."""

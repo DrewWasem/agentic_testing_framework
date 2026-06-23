@@ -30,9 +30,11 @@ LENS_GUIDANCE = {
     "completeness": "Judge ONLY whether every required part of the task is present.",
     "clarity": "Judge ONLY clarity, structure, and readability.",
     "adversarial": (
-        "Act as a skeptic: hunt for the single strongest reason this output FAILS TO MEET "
-        "THE STATED EXPECTATION OR CRITERIA. Do not penalize it for requirements the task "
-        "did not state."
+        "Act as a skeptic: hunt for the single strongest weakness in this output. If it is a "
+        "failure to meet the STATED EXPECTATION OR CRITERIA, raise it as a failure. If it is a "
+        "real weakness the task did NOT require (e.g. an unhandled edge case beyond the spec), "
+        'route it to an ADVISORY instead -- set "advisory": true and "passed": null -- so it is '
+        "recorded as a beyond-spec note rather than counted as a failure."
     ),
 }
 

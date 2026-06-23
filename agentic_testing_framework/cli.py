@@ -49,11 +49,21 @@ def _print_verdict(verdict: Verdict) -> None:
     if verdict.cited_findings:
         print(f"Cited findings: {', '.join(verdict.cited_findings)}")
     print(f"Model calls: {verdict.total_llm_calls} (gated={verdict.gated})")
+    # Advisory findings are beyond-spec notes that never drove the verdict, so they print in
+    # their own section below the verdict-driving ledger, not interleaved with it.
+    advisory = [f for f in verdict.findings if f.advisory]
     print("Evidence ledger:")
     for finding in verdict.findings:
+        if finding.advisory:
+            continue
         status = "" if finding.passed is None else (" PASS" if finding.passed else " FAIL")
         head = f"  [{finding.id}] {finding.source} ({finding.severity.value}{status})"
         print(f"{head}: {finding.message}")
+    if advisory:
+        print("Also noted (advisory, beyond the stated spec):")
+        for finding in advisory:
+            head = f"  [{finding.id}] {finding.source} ({finding.severity.value})"
+            print(f"{head}: {finding.message}")
 
 
 def _print_cost_rollup(verdict: Verdict) -> None:

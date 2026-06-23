@@ -32,9 +32,13 @@ _REVIEWER_TEXT = (
     "every judgment. Be strict: if a criterion is not clearly and fully met, mark it "
     "failed. Reward results, not intentions. The DETERMINISTIC FACTS block is ground truth "
     "established by code; rely on it and never recompute or contradict it. "
+    "If you spot a true issue the EXPECTATION/CRITERIA do NOT require, report it as an "
+    'ADVISORY -- set "advisory": true and "passed": null -- a beyond-spec note that is '
+    "recorded but never counted as a failure. "
     "Respond with ONLY a JSON object of the form: "
     '{"findings": [{"criterion": str, "passed": bool, '
-    '"severity": "info|low|medium|high|critical", "message": str, "evidence": str}], '
+    '"severity": "info|low|medium|high|critical", "message": str, "evidence": str, '
+    '"advisory": bool (optional, default false)}], '
     '"summary": str}. '
     "If you are unsure about a criterion, say so explicitly in the message and mark "
     "passed=false. Do not guess or fabricate."
@@ -46,9 +50,11 @@ _ORCHESTRATOR_TEXT = (
     "reviewers disagree, weigh whose EVIDENCE is stronger, and rule. A single "
     "well-evidenced finding can outweigh several weakly-supported ones. A finding that "
     "objects on grounds NOT stated in the EXPECTATION or CRITERIA must be noted but must "
-    "NOT turn a PASS into a FAIL -- rule only on the stated requirements. Cite the finding "
-    "ids that drive your ruling. Base your ruling ONLY on the provided findings; if the "
-    'evidence is genuinely insufficient to decide, rule "inconclusive". '
+    "NOT turn a PASS into a FAIL -- rule only on the stated requirements. Findings marked "
+    "advisory=true are beyond-spec observations: note them if useful, but rule the verdict "
+    "ONLY on the in-scope (non-advisory) findings -- an advisory must NEVER cause a FAIL. "
+    "Cite the finding ids that drive your ruling. Base your ruling ONLY on the provided "
+    'findings; if the evidence is genuinely insufficient to decide, rule "inconclusive". '
     "Respond with ONLY a JSON object of the form: "
     '{"outcome": "pass|fail|inconclusive", "rationale": str, "cited_findings": [str]}.'
 )
@@ -69,13 +75,14 @@ _COUNCIL_TEXT = (
     "You are one reviewer on an evaluation council, assigned a single lens: "
     "{lens}. {guidance} Judge the agent OUTPUT only against the EXPECTATION and "
     "CRITERIA, through your lens only. Do NOT invent requirements the task did not "
-    "state: a concern that falls outside the stated EXPECTATION and CRITERIA is out "
-    "of scope and must not be raised as a failure. Treat the DETERMINISTIC FACTS as "
+    "state: a true issue the EXPECTATION/CRITERIA do NOT require must be reported as an "
+    'ADVISORY -- set "advisory": true and "passed": null -- recorded as a beyond-spec '
+    "note, never counted as a failure. Treat the DETERMINISTIC FACTS as "
     "ground truth. Quote evidence. You may disagree with the other reviewers -- "
     "report what you see. Respond with ONLY a JSON object of the form: "
     '{"findings": [{"criterion": str, "passed": bool, '
     '"severity": "info|low|medium|high|critical", "message": str, '
-    '"evidence": str}], "summary": str}. '
+    '"evidence": str, "advisory": bool (optional, default false)}], "summary": str}. '
     "If unsure, say so and mark passed=false."
 )
 
@@ -111,28 +118,37 @@ class Prompt:
 PROMPTS: dict[str, Prompt] = {
     "reviewer": Prompt(
         id="reviewer",
-        version=1,
+        version=2,
         text=_REVIEWER_TEXT,
-        changelog=("v1: initial",),
+        changelog=(
+            "v1: initial",
+            "v2: a true issue beyond the stated expectation/criteria is reported as an "
+            'ADVISORY ("advisory": true, "passed": null) -- recorded, never a failure',
+        ),
     ),
     "council": Prompt(
         id="council",
-        version=2,
+        version=3,
         text=_COUNCIL_TEXT,
         changelog=(
             "v1: initial",
             "v2: anchor every lens to the stated expectation; an out-of-scope concern "
             "must not be raised as a failure (fixes adversarial over-reach found by meta-eval)",
+            "v3: route a true beyond-spec issue to an ADVISORY "
+            '("advisory": true, "passed": null) instead of suppressing it -- recorded as a '
+            "beyond-spec note, never counted as a failure",
         ),
     ),
     "orchestrator": Prompt(
         id="orchestrator",
-        version=2,
+        version=3,
         text=_ORCHESTRATOR_TEXT,
         changelog=(
             "v1: initial",
             "v2: an out-of-scope objection must not flip PASS->FAIL; "
             "rule only on stated requirements",
+            "v3: rule the verdict ONLY on in-scope (non-advisory) findings; "
+            "an advisory=true finding must never cause a FAIL",
         ),
     ),
     "generator": Prompt(
