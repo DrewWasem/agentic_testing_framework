@@ -198,6 +198,28 @@ figure is an estimate (tokens approximated from the actual text), not a bill.
 
 ---
 
+## Run a suite of cases
+
+`atf run` judges one case; `atf eval` runs a whole file of them and produces one
+browsable HTML page — a summary header (total / pass / fail / inconclusive), a
+table with one row per case linking down to its detail, and a per-case section
+with that case's rationale, cited findings, and full evidence ledger.
+
+```bash
+atf eval --cases examples/cases.json --html report.html --open
+```
+
+`--cases` takes a JSON array of cases —
+`[{"input":…, "expectation":…, "output"?, "criteria"?, "id"?}, …]` — and a
+[ready-to-run `examples/cases.json`](examples/cases.json) ships with the repo. The
+suite prints a per-case summary to the terminal (each line coloured by outcome at
+an interactive terminal; plain when piped, under `NO_COLOR`, or with `--no-color`),
+`--html` writes the self-contained report, `--open` opens it, and `--gate` exits 1
+if *any* case is not PASS so CI fails on the first regression in the set. The judge
+defaults to the offline mock; `--judge claude-cli --model …` runs a real Claude.
+
+---
+
 ## Metrics
 
 The tribunal is the core evaluation; the metric library is a set of **named LLM-judge

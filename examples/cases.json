@@ -1,0 +1,34 @@
+[
+  {
+    "id": "sql-revenue-per-region",
+    "input": "Write a SQL query for total revenue per region in 2025.",
+    "output": "SELECT region, SUM(amount) AS revenue FROM orders WHERE year=2025 GROUP BY region;",
+    "expectation": "A correct, runnable SQL query answering the question.",
+    "criteria": [
+      "Groups by region",
+      "Sums a revenue/amount column",
+      "Filters to the year 2025",
+      "Is syntactically valid SQL"
+    ]
+  },
+  {
+    "id": "arithmetic-2-plus-2",
+    "input": "What is 2 + 2?",
+    "output": "2 + 2 = 4.",
+    "expectation": "States the answer is 4."
+  },
+  {
+    "id": "capital-of-france",
+    "input": "What is the capital of France?",
+    "output": "The capital of France is Paris.",
+    "expectation": "Names Paris as the capital of France.",
+    "criteria": ["Names Paris", "Answers the question directly"]
+  },
+  {
+    "id": "summarize-photosynthesis",
+    "input": "Summarize photosynthesis in one sentence.",
+    "output": "Photosynthesis is the process by which plants convert sunlight, water, and carbon dioxide into glucose and oxygen.",
+    "expectation": "A one-sentence, accurate summary of photosynthesis.",
+    "criteria": ["Is a single sentence", "Mentions sunlight and carbon dioxide", "Is factually accurate"]
+  }
+]

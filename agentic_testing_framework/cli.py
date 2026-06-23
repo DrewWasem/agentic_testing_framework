@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import webbrowser
 from collections.abc import Sequence
 
 from . import __version__
 from .core.case import Case
+from .core.finding import Finding
 from .core.types import Outcome, Verdict
 from .metaeval import MetaEvalReport, load_labeled, render_markdown, run_metaeval
 from .metrics import MetricReport, run_metrics
@@ -26,8 +28,47 @@ from .providers.base import Provider
 from .providers.claude_cli import ClaudeCLIProvider
 from .providers.mock import MockProvider
 from .regression import RegressionReport, load_golden, run_regression, update_baseline
-from .reporting import render_html, render_junit
+from .reporting import render_html, render_junit, render_suite_html
 from .tribunal.pipeline import build_pipeline
+
+# ANSI colour codes used by the human-readable stdout. Kept as a tiny table so the colour
+# helper stays a one-liner and the styling intent is named, not scattered as magic numbers.
+_GREEN = "32"
+_RED = "31"
+_YELLOW = "33"
+_DIM = "2"
+_BOLD = "1"
+
+# Map an outcome to the colour its banner/badge/summary line is painted in when colour is on.
+_OUTCOME_COLOR = {
+    Outcome.PASS: _GREEN,
+    Outcome.FAIL: _RED,
+    Outcome.INCONCLUSIVE: _YELLOW,
+}
+
+
+def _c(text: str, code: str, *, on: bool) -> str:
+    """Wrap ``text`` in an ANSI colour escape when ``on``; otherwise return it unchanged.
+
+    The single choke point for colour: every coloured span goes through here, so the plain
+    path (a non-tty, ``NO_COLOR``, or ``--no-color``) is guaranteed escape-free and the tests
+    that parse stdout see exactly the bare text.
+    """
+
+    return f"\033[{code}m{text}\033[0m" if on else text
+
+
+def _color_enabled(no_color: bool) -> bool:
+    """Colour is opt-out and TTY-aware: on only at an interactive terminal, unless suppressed.
+
+    Disabled when stdout is not a tty (so piped/captured output — including pytest — stays
+    plain), when ``NO_COLOR`` is set (the cross-tool convention), or when ``--no-color`` was
+    passed. All three must clear for colour to turn on.
+    """
+
+    if no_color or os.environ.get("NO_COLOR"):
+        return False
+    return bool(getattr(sys.stdout, "isatty", lambda: False)())
 
 
 def _example_case() -> Case:
@@ -46,27 +87,63 @@ def _example_case() -> Case:
     )
 
 
-def _print_verdict(verdict: Verdict) -> None:
-    print(f"VERDICT: {verdict.outcome.value.upper()}")
+def _print_verdict(verdict: Verdict, *, no_color: bool = False) -> None:
+    """Print a scannable, colour-aware verdict: banner, one-line summary, then the evidence.
+
+    The layout is built to be read top-down: a coloured ``── VERDICT: PASS ──`` banner, a
+    single summary line of the counts that matter, the rationale, the cited findings, the full
+    evidence ledger (grouped by source, ids dimmed, a finding's PASS/FAIL coloured), and last
+    the advisory section for beyond-spec notes. Colour is opt-out and TTY-aware via ``_c``;
+    when it is off the output is plain text — ``VERDICT: PASS`` and the summary line are always
+    present as bare substrings so the stdout stays parseable.
+    """
+
+    on = _color_enabled(no_color)
+    outcome = verdict.outcome
+    label = outcome.value.upper()
+    code = _OUTCOME_COLOR.get(outcome, _YELLOW)
+    banner = _c(f"── VERDICT: {label} ──", f"{_BOLD};{code}", on=on)
+    print(banner)
+    # Advisory findings are beyond-spec notes that never drove the verdict, so they are split
+    # out of the verdict-driving ledger and counted separately in the summary line below.
+    advisory = [f for f in verdict.findings if f.advisory]
+    ledger = [f for f in verdict.findings if not f.advisory]
+    summary = (
+        f"{len(ledger)} findings · {len(advisory)} advisory · "
+        f"{verdict.total_llm_calls} model calls (gated={verdict.gated})"
+    )
+    print(_c(summary, _DIM, on=on))
+    print()
     print(f"Rationale: {verdict.rationale}")
     if verdict.cited_findings:
         print(f"Cited findings: {', '.join(verdict.cited_findings)}")
-    print(f"Model calls: {verdict.total_llm_calls} (gated={verdict.gated})")
-    # Advisory findings are beyond-spec notes that never drove the verdict, so they print in
-    # their own section below the verdict-driving ledger, not interleaved with it.
-    advisory = [f for f in verdict.findings if f.advisory]
     print("Evidence ledger:")
-    for finding in verdict.findings:
-        if finding.advisory:
-            continue
-        status = "" if finding.passed is None else (" PASS" if finding.passed else " FAIL")
-        head = f"  [{finding.id}] {finding.source} ({finding.severity.value}{status})"
-        print(f"{head}: {finding.message}")
+    for finding in ledger:
+        print(f"  {_format_ledger_line(finding, on=on)}")
     if advisory:
-        print("Also noted (advisory, beyond the stated spec):")
+        print(_c("Also noted — advisory (beyond the stated spec):", _DIM, on=on))
         for finding in advisory:
-            head = f"  [{finding.id}] {finding.source} ({finding.severity.value})"
+            fid = _c(f"[{finding.id}]", _DIM, on=on)
+            head = f"  {fid} {finding.source} ({finding.severity.value})"
             print(f"{head}: {finding.message}")
+
+
+def _format_ledger_line(finding: Finding, *, on: bool) -> str:
+    """Format one ledger finding: a dimmed id, the source/severity, a coloured PASS/FAIL.
+
+    A failed finding's status is painted red and a passed one green when colour is on; an
+    informational finding (``passed is None``) carries no status token at all.
+    """
+
+    fid = _c(f"[{finding.id}]", _DIM, on=on)
+    if finding.passed is None:
+        status = ""
+    elif finding.passed:
+        status = " " + _c("PASS", _GREEN, on=on)
+    else:
+        status = " " + _c("FAIL", _RED, on=on)
+    head = f"{fid} {finding.source} ({finding.severity.value}{status})"
+    return f"{head}: {finding.message}"
 
 
 def _print_cost_rollup(verdict: Verdict) -> None:
@@ -228,6 +305,62 @@ def _run_regression_command(golden_path: str, max_drift: float, update: bool) ->
     return 0 if report.passed else 1
 
 
+def _print_suite_summary(results: Sequence[tuple[str, Verdict]], *, no_color: bool = False) -> None:
+    """Print a per-case suite summary: a header count line, then one coloured line per case.
+
+    Each case line leads with its outcome (PASS green / FAIL red / INCONCLUSIVE yellow when
+    colour is on) so a long suite scans at a glance; the count of non-PASS cases is the number
+    ``--gate`` keys off. Colour is opt-out and TTY-aware via ``_c``; the plain path prints the
+    bare outcome word so the summary stays parseable.
+    """
+
+    on = _color_enabled(no_color)
+    n_pass = sum(1 for _, v in results if v.outcome is Outcome.PASS)
+    n_fail = sum(1 for _, v in results if v.outcome is Outcome.FAIL)
+    n_inconclusive = sum(1 for _, v in results if v.outcome is Outcome.INCONCLUSIVE)
+    header = (
+        f"Suite: {len(results)} case(s) · {n_pass} pass · "
+        f"{n_fail} fail · {n_inconclusive} inconclusive"
+    )
+    print(_c(header, _BOLD, on=on))
+    width = max((len(name) for name, _ in results), default=0)
+    for name, verdict in results:
+        code = _OUTCOME_COLOR.get(verdict.outcome, _YELLOW)
+        mark = _c(f"{verdict.outcome.value.upper():<12}", code, on=on)
+        print(f"  {mark} {name:<{width}}  {verdict.rationale}")
+
+
+def _run_eval_command(args: argparse.Namespace) -> int:
+    """Run a whole suite of cases through the tribunal and report it as a browsable artifact.
+
+    Loads the JSON array from ``--cases`` (a bad/non-array file exits 2, cleanly), builds the
+    pipeline once on the chosen judge backend, runs every case, and prints a per-case summary.
+    With ``--html`` it writes :func:`render_suite_html` (and ``--open`` opens it); with
+    ``--gate`` it exits 1 if ANY case's outcome is not PASS, else 0 — the suite-wide analogue
+    of :func:`_exit_code`.
+    """
+
+    if args.open and not args.html:
+        args._eval_parser.error("--open needs an HTML report to open; pass --html PATH too")
+    loaded = _load_cases_file(args.cases)
+    if loaded is None:
+        return 2
+    judge = _build_judge_provider(args.judge, args.model)
+    pipeline = build_pipeline(judge)
+    results = [(name, pipeline.run_case(case)) for name, case in loaded]
+    _print_suite_summary(results, no_color=args.no_color)
+    ok = True
+    if args.html:
+        ok = _write_report(args.html, render_suite_html(results), "suite HTML") and ok
+        if ok and args.open:
+            _open_report(args.html)
+    if not ok:
+        return 1
+    if args.gate and any(v.outcome is not Outcome.PASS for _, v in results):
+        return 1
+    return 0
+
+
 def _exit_code(verdict: Verdict, gate: bool) -> int:
     """Return ``1`` when gating is on and the ruling is not PASS, else ``0``.
 
@@ -267,28 +400,20 @@ def _open_report(path: str) -> None:
     print(f"Opened {path} in the default browser")
 
 
-def _load_case_file(path: str) -> Case | None:
-    """Load a single case from a JSON file: ``{input, output?, expectation, criteria?}``.
+def _case_from_dict(data: object, path: str) -> Case | None:
+    """Build a :class:`Case` from one decoded JSON object, validating field TYPES.
 
-    Returns ``None`` and reports cleanly to stderr on a missing/unreadable/malformed file or a
-    payload missing the required ``input``/``expectation``, so a bad ``--case-file`` exits
-    non-zero without a traceback — the same contract as :func:`_write_report`.
+    Shared by the single-case ``--case-file`` loader and the suite ``--cases`` loader so both
+    enforce the same contract: the payload must be an object with string ``input`` and
+    ``expectation``; ``output`` is a string or omitted; ``criteria`` is a list of strings or
+    omitted. On any violation it reports cleanly to stderr and returns ``None`` — a non-string
+    value must never reach a downstream check and crash with a traceback (e.g. the clerk's
+    ``(output or "").split()``).
     """
 
-    try:
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except OSError as exc:
-        print(f"error: could not read case file {path}: {exc}", file=sys.stderr)
-        return None
-    except json.JSONDecodeError as exc:
-        print(f"error: case file {path} is not valid JSON: {exc}", file=sys.stderr)
-        return None
     if not isinstance(data, dict):
         print(f"error: case file {path} must be a JSON object", file=sys.stderr)
         return None
-    # Validate field TYPES, not just presence: a non-string value would otherwise reach a
-    # downstream check and crash with a traceback (e.g. the clerk's ``(output or "").split()``).
     input_ = data.get("input")
     expectation = data.get("expectation")
     output = data.get("output")
@@ -313,6 +438,67 @@ def _load_case_file(path: str) -> Case | None:
         output=output,
         criteria=tuple(criteria or ()),
     )
+
+
+def _read_json_file(path: str, kind: str) -> object | None:
+    """Read and JSON-decode ``path``; report a missing/unreadable/malformed file cleanly.
+
+    Returns the decoded payload, or ``None`` after printing an ``error:`` line to stderr — so a
+    bad ``--case-file``/``--cases`` path exits non-zero without a traceback.
+    """
+
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except OSError as exc:
+        print(f"error: could not read {kind} file {path}: {exc}", file=sys.stderr)
+        return None
+    except json.JSONDecodeError as exc:
+        print(f"error: {kind} file {path} is not valid JSON: {exc}", file=sys.stderr)
+        return None
+
+
+def _load_case_file(path: str) -> Case | None:
+    """Load a single case from a JSON file: ``{input, output?, expectation, criteria?}``.
+
+    Returns ``None`` and reports cleanly to stderr on a missing/unreadable/malformed file or a
+    payload that fails type validation, so a bad ``--case-file`` exits non-zero without a
+    traceback — the same contract as :func:`_write_report`.
+    """
+
+    data = _read_json_file(path, "case")
+    if data is None:
+        return None
+    return _case_from_dict(data, path)
+
+
+def _load_cases_file(path: str) -> list[tuple[str, Case]] | None:
+    """Load a JSON ARRAY of cases for ``atf eval``, as ``(name, case)`` pairs in file order.
+
+    The file must be a JSON array; each element is a case object validated by
+    :func:`_case_from_dict`. A case's name is its ``id`` or ``name`` field if a non-empty
+    string, else ``case-{i}`` by position. A missing/malformed/non-array file or any element
+    that fails validation reports cleanly to stderr and returns ``None`` (exit 2, no traceback).
+    """
+
+    data = _read_json_file(path, "cases")
+    if data is None:
+        return None
+    if not isinstance(data, list):
+        print(f"error: cases file {path} must be a JSON array of case objects", file=sys.stderr)
+        return None
+    if not data:
+        print(f"error: cases file {path} contains no cases", file=sys.stderr)
+        return None
+    cases: list[tuple[str, Case]] = []
+    for i, item in enumerate(data):
+        case = _case_from_dict(item, path)
+        if case is None:
+            return None
+        name = item.get("id") or item.get("name")
+        label = name if isinstance(name, str) and name else f"case-{i}"
+        cases.append((label, case))
+    return cases
 
 
 def _case_from_args(args: argparse.Namespace) -> Case | None:
@@ -413,6 +599,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Open the HTML report in the default browser after writing it (requires --html)",
     )
+    run_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable coloured terminal output (also honoured via NO_COLOR / a non-tty)",
+    )
     # Stash the run subparser so _case_from_args can raise a clean argparse error for a
     # partial inline case without main having to thread the parser into the helper.
     run_parser.set_defaults(_run_parser=run_parser)
@@ -454,6 +645,48 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Re-run and rewrite the baseline with the current outcomes, then exit 0",
     )
+    eval_parser = sub.add_parser(
+        "eval", help="Run a suite of cases and emit one browsable summary + HTML report"
+    )
+    eval_parser.add_argument(
+        "--cases",
+        metavar="PATH",
+        required=True,
+        help='JSON array of cases: [{"input":…, "expectation":…, "output"?, "criteria"?, '
+        '"id"?}, …] (output/criteria/id optional)',
+    )
+    eval_parser.add_argument(
+        "--judge",
+        choices=("mock", "claude-cli"),
+        default="mock",
+        help="Judge backend: mock (offline default) or claude-cli (a real Claude run)",
+    )
+    eval_parser.add_argument(
+        "--model",
+        metavar="MODEL",
+        help="Model id for the claude-cli judge (e.g. claude-opus-4-8); ignored for mock",
+    )
+    eval_parser.add_argument(
+        "--html", metavar="PATH", help="Write a self-contained HTML suite report to PATH"
+    )
+    eval_parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the HTML report in the default browser after writing it (requires --html)",
+    )
+    eval_parser.add_argument(
+        "--gate",
+        action="store_true",
+        help="Exit 1 when ANY case's verdict is not PASS (so CI fails the job)",
+    )
+    eval_parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable coloured terminal output (also honoured via NO_COLOR / a non-tty)",
+    )
+    # Stash the eval subparser so _run_eval_command can raise a clean argparse error for
+    # --open-without---html, the same way the run command does.
+    eval_parser.set_defaults(_eval_parser=eval_parser)
     sub.add_parser("version", help="Print the version")
 
     args = parser.parse_args(argv)
@@ -464,6 +697,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_metaeval_command(args.dataset, args.judge, args.model, args.out)
     if args.command == "regression":
         return _run_regression_command(args.golden, args.max_drift, args.update_baseline)
+    if args.command == "eval":
+        return _run_eval_command(args)
     if args.command == "run":
         case = _case_from_args(args)
         if case is None:
@@ -483,7 +718,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         judge = _build_judge_provider(args.judge, args.model)
         pipeline = build_pipeline(judge, cache_dir=args.cache)
         verdict = pipeline.run_case(case)
-        _print_verdict(verdict)
+        _print_verdict(verdict, no_color=args.no_color)
         if args.show_cost:
             _print_cost_rollup(verdict)
         if args.metrics:

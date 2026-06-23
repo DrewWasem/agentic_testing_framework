@@ -70,7 +70,7 @@ from .regression import (
     save_golden,
     update_baseline,
 )
-from .reporting import render_html, render_junit
+from .reporting import render_html, render_junit, render_suite_html
 from .targets.base import Target
 from .targets.cli import CliTarget
 from .targets.function import FunctionTarget
@@ -179,6 +179,7 @@ __all__ = [
     "render_html",
     "render_junit",
     "render_markdown",
+    "render_suite_html",
     "run_metaeval",
     "run_metrics",
     "run_regression",

@@ -4,8 +4,15 @@ import json
 
 import pytest
 
-from agentic_testing_framework import __version__, cli
-from agentic_testing_framework.cli import main
+from agentic_testing_framework import (
+    Finding,
+    Outcome,
+    Severity,
+    Verdict,
+    __version__,
+    cli,
+)
+from agentic_testing_framework.cli import _c, _print_verdict, main
 
 
 def test_cli_version(capsys):
@@ -144,3 +151,68 @@ def test_cli_run_case_file_null_output_is_valid(tmp_path, capsys):
     case = tmp_path / "case.json"
     case.write_text(json.dumps({"input": "q", "expectation": "e", "output": None}))
     assert main(["run", "--case-file", str(case)]) == 0
+
+
+# --- the colour helper and the reworked verdict printer ---------------------------------
+
+
+def test_c_wraps_in_ansi_when_on():
+    wrapped = _c("hi", "32", on=True)
+    assert wrapped == "\033[32mhi\033[0m"
+
+
+def test_c_is_plain_when_off():
+    # Off -> the text is returned verbatim, with no escape codes at all.
+    assert _c("hi", "32", on=False) == "hi"
+
+
+def test_print_verdict_is_plain_and_parseable_in_non_tty(capsys):
+    # Under pytest stdout is not a tty, so colour is off: the output must be escape-free and
+    # carry the headline substrings tooling parses (the banner and the summary count line).
+    verdict = Verdict(
+        outcome=Outcome.PASS,
+        rationale="all good",
+        findings=(
+            Finding(
+                source="clerk:word_count", severity=Severity.INFO, message="12 words", id="c#0"
+            ),
+        ),
+    )
+    _print_verdict(verdict)
+    out = capsys.readouterr().out
+    assert "\033[" not in out  # no ANSI escapes leaked into captured (non-tty) output
+    assert "VERDICT: PASS" in out
+    # The one-line summary with the counts that matter.
+    assert "1 findings · 0 advisory · 0 model calls (gated=False)" in out
+
+
+def test_print_verdict_shows_advisory_section_when_present(capsys):
+    verdict = Verdict(
+        outcome=Outcome.PASS,
+        rationale="all good",
+        findings=(
+            Finding(source="clerk:word_count", severity=Severity.INFO, message="ok", id="c#0"),
+            Finding(
+                source="council:accuracy",
+                severity=Severity.LOW,
+                message="a beyond-spec note",
+                id="council:accuracy#1",
+                advisory=True,
+            ),
+        ),
+    )
+    _print_verdict(verdict)
+    out = capsys.readouterr().out
+    # Advisory is counted separately in the summary and printed in its own section below.
+    assert "1 findings · 1 advisory · 0 model calls" in out
+    assert "Also noted — advisory (beyond the stated spec):" in out
+    assert "a beyond-spec note" in out
+
+
+def test_print_verdict_no_color_flag_forces_plain(capsys):
+    # Even if something upstream thought colour was on, --no-color (no_color=True) wins.
+    verdict = Verdict(outcome=Outcome.FAIL, rationale="nope")
+    _print_verdict(verdict, no_color=True)
+    out = capsys.readouterr().out
+    assert "\033[" not in out
+    assert "VERDICT: FAIL" in out
