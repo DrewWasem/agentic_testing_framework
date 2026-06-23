@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATF live (Haiku) — a correct palindrome check, PASS with a beyond-spec advisory</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+      sans-serif;
+    line-height: 1.5; margin: 0; padding: 2rem; color: #1a1a1a; background: #fafafa;
+  }
+  main { max-width: 56rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid #ddd;
+       padding-bottom: 0.35rem; }
+  h3 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: #333; }
+  .outcome { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 0.4rem;
+             font-weight: 700; letter-spacing: 0.03em; }
+  .outcome-pass { background: #e7f6ec; color: #186a3b; }
+  .outcome-fail { background: #fdecea; color: #a01a0e; }
+  .outcome-inconclusive { background: #fff4e5; color: #8a5300; }
+  .meta { color: #666; font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .rationale { background: #fff; border: 1px solid #e2e2e2; border-left: 4px solid #888;
+               border-radius: 0.4rem; padding: 0.75rem 1rem; white-space: pre-wrap; }
+  ul.cited { list-style: none; padding: 0; margin: 0.5rem 0; }
+  ul.cited li { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo,
+                Consolas, monospace; font-size: 0.85rem; background: #eef; color: #224;
+                border-radius: 0.3rem; padding: 0.15rem 0.5rem; margin: 0.15rem 0.3rem 0.15rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.5rem 0; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #e6e6e6; }
+  th { color: #555; font-weight: 600; }
+  .finding { background: #fff; border: 1px solid #e2e2e2; border-radius: 0.4rem;
+             padding: 0.6rem 0.85rem; margin: 0.5rem 0; }
+  .finding-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+  .fid { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         font-size: 0.8rem; color: #555; }
+  .sev { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+         font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 0.3rem; }
+  .sev-info { background: #eef; color: #335; }
+  .sev-low { background: #eef6ff; color: #1f5a8a; }
+  .sev-medium { background: #fff4e5; color: #8a5300; }
+  .sev-high { background: #fdecea; color: #a01a0e; }
+  .sev-critical { background: #a01a0e; color: #fff; }
+  .pf { font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 0.3rem; }
+  .pf-pass { background: #e7f6ec; color: #186a3b; }
+  .pf-fail { background: #fdecea; color: #a01a0e; }
+  .finding-msg { margin: 0.35rem 0 0; }
+  .evidence { margin: 0.4rem 0 0; padding: 0.4rem 0.6rem; background: #f4f4f4;
+              border-radius: 0.3rem; font-family: ui-monospace, SFMono-Regular, Menlo,
+              Consolas, monospace; font-size: 0.82rem; white-space: pre-wrap; }
+  .evidence-label { color: #888; font-size: 0.75rem; text-transform: uppercase;
+                    letter-spacing: 0.04em; }
+  /* Advisory findings are beyond-spec notes that never drive the verdict, so they read
+     muted and visually set apart from the verdict-driving ledger above. */
+  .advisory-note { color: #777; font-size: 0.85rem; margin: 0 0 0.5rem; }
+  .advisory .finding { background: #f6f6f4; border-style: dashed; border-color: #cfcfca;
+                       opacity: 0.92; }
+  footer { color: #999; font-size: 0.8rem; margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>ATF live (Haiku) — a correct palindrome check, PASS with a beyond-spec advisory</h1>
+<p><span class="outcome outcome-pass">PASS</span></p>
+<p class="meta">Model calls: 6 &middot; gated: no &middot; findings: 15</p>
+</header>
+<h2>Case</h2>
+<table>
+<tr><th>Input</th><td>Write a Python function is_palindrome(s) that returns True if the string s is a palindrome.</td></tr>
+<tr><th>Expectation</th><td>A correct palindrome check that returns True for palindromes and False otherwise.</td></tr>
+<tr><th>Output</th><td>def is_palindrome(s):
+    return all(s[i] == s[~i] for i in range(len(s) // 2))</td></tr>
+</table>
+<h3>Criteria</h3>
+<ul>
+<li>Returns True for palindromes and False for non-palindromes</li>
+<li>Valid Python</li>
+</ul>
+<h2>Rationale</h2>
+<div class="rationale">The function correctly implements palindrome checking as specified. Multiple accuracy findings (accuracy#5, accuracy#6) verify the bitwise NOT mirroring approach is correct, with comprehensive test traces confirming proper behavior on palindromes (&#x27;aba&#x27;, &#x27;racecar&#x27;), non-palindromes (&#x27;abc&#x27;), and edge cases (empty string, single char). Completeness findings (completeness#7, completeness#8) confirm the function returns True for palindromes and False otherwise, meeting the stated expectation. The clarity#11 finding notes the bitwise NOT idiom (`s[~i]`) is non-obvious and reduces readability, but this does not impair functionality. The adversarial#14 finding raises input validation concerns (crashes on non-string input), but this objects on grounds NOT stated in the expectation—the task specifies &#x27;returns True if the string s is a palindrome,&#x27; implicitly assuming string input. The function is correct as specified.</div>
+<h2>Cited findings</h2>
+<p class='meta'>No findings were cited.</p>
+<h2>Stage costs</h2>
+<table>
+<tr><th>stage</th><th>provider</th><th>llm_calls</th><th>latency_s</th><th>cost_usd</th></tr>
+<tr><td>clerk</td><td>deterministic</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>reviewer</td><td>claude-cli</td><td>1</td><td>29.213015416637063</td><td>0.00219325</td></tr>
+<tr><td>council</td><td>claude-cli</td><td>4</td><td>158.75581949949265</td><td>0.01066225</td></tr>
+<tr><td>orchestrator</td><td>claude-cli</td><td>1</td><td>44.14684104267508</td><td>0.015473749999999998</td></tr>
+</table>
+<h2>Evidence ledger</h2>
+<h3>clerk:word_count</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:word_count#0</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>Output word count = 12.</p></div>
+<h3>clerk:sentence_length</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:sentence_length#1</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>Average sentence length = 12.0 words across 1 sentence(s).</p></div>
+<h3>clerk:url_validity</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>clerk:url_validity#2</span><span class='sev sev-info'>info</span></div><p class='finding-msg'>No URLs found in output.</p></div>
+<h3>reviewer</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>reviewer#3</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Returns True for palindromes and False for non-palindromes</span></div><p class='finding-msg'>The function correctly implements palindrome checking using bitwise NOT (`~i`) to generate mirror indices. For palindromes like &#x27;aba&#x27; or &#x27;racecar&#x27;, all character comparisons succeed, returning True. For non-palindromes like &#x27;abc&#x27;, comparisons fail and return False. Edge cases (empty string, single char) correctly return True.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>def is_palindrome(s): return all(s[i] == s[~i] for i in range(len(s) // 2)). Trace: &#x27;aba&#x27; → i=0: s[0]==&#x27;a&#x27; vs s[-1]==&#x27;a&#x27; → all([True]) → True. &#x27;abc&#x27; → i=0: s[0]==&#x27;a&#x27; vs s[-1]==&#x27;c&#x27; → all([False]) → False.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>reviewer#4</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>The code is syntactically valid Python. Uses only built-in functions (all, range, len) and valid operators (bitwise NOT ~, floor division //, list indexing). Will execute without syntax or runtime errors.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>def, return, all(), generator expression, range(), len(), // operator, string indexing with negative indices — all standard Python constructs.</div></div>
+<h3>council:accuracy</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:accuracy#5</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Returns True for palindromes and False for non-palindromes</span></div><p class='finding-msg'>Function correctly implements palindrome checking. Uses bitwise NOT (~i) to map index i to its mirror position from the end (s[~i] = s[-(i+1)]). Loop range(len(s)//2) ensures only half the string is checked, skipping redundant comparisons and the middle character in odd-length strings. All character pairs match for palindromes (all() returns True), any mismatch returns False.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Test traces: &#x27;aba&#x27; → s[0]==&#x27;a&#x27;, s[~0]=s[-1]==&#x27;a&#x27; → True; &#x27;abc&#x27; → s[0]==&#x27;a&#x27;, s[~0]=s[-1]==&#x27;c&#x27; → False; &#x27;racecar&#x27; (7 chars) → checks indices [0,1,2] against [~0,~1,~2]=[-1,-2,-3] → all match → True; &#x27;&#x27; and &#x27;a&#x27; → range(0) produces empty generator → all([])=True (correct).</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:accuracy#6</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Code is syntactically and semantically valid Python. Function definition, generator expression, all() built-in, range(), len(), floor division (//), bitwise NOT operator (~), and negative indexing are all correct and supported by Python. No runtime errors or undefined behavior.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Syntax verified: valid function signature, valid generator expression in all() call, all operators and built-ins are standard Python. Negative indexing is a core Python feature. Will execute without SyntaxError or runtime AttributeError/TypeError.</div></div>
+<h3>council:completeness</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:completeness#7</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Returns True for palindromes and False for non-palindromes</span></div><p class='finding-msg'>The function provides the required functionality. Returns True when all character pairs match (palindrome condition) and False otherwise.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>The function uses `all(s[i] == s[~i] for i in range(len(s) // 2))` to compare each character at position i with its mirror position. For palindromes (&#x27;aba&#x27;, &#x27;racecar&#x27;), all comparisons succeed and all() returns True. For non-palindromes (&#x27;abc&#x27;), at least one comparison fails and all() returns False. Edge cases (empty string, single character) inherently return True via all() on an empty generator.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:completeness#8</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>The code is syntactically correct and will execute without errors.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>The function uses only built-in functions (all, range, len) and valid Python operators (bitwise NOT ~, floor division //, list indexing []). No syntax errors or runtime errors present.</div></div>
+<h3>council:clarity</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#9</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Returns True for palindromes and False for non-palindromes</span></div><p class='finding-msg'>Clear. The function returns boolean values as required.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>`all()` naturally returns True/False; logic correctly identifies palindromes vs. non-palindromes.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#10</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Clear. Code is syntactically valid and uses standard operations correctly.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>Valid function definition, operators, built-ins (all, len, range), and indexing syntax.</div></div>
+<h3>council:adversarial</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#12</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Returns True for palindromes and False for non-palindromes</span></div><p class='finding-msg'>The function correctly identifies palindromes using exact character-by-character matching with bitwise NOT mirroring. Logic verified for palindromes (&#x27;aba&#x27;, &#x27;racecar&#x27;), non-palindromes (&#x27;abc&#x27;, &#x27;abcd&#x27;), and edge cases (empty string, single char).</p><div class='evidence'><span class='evidence-label'>evidence</span><br>For &#x27;racecar&#x27; (length 7): checks s[0]==&#x27;r&#x27; vs s[~0]=&#x27;r&#x27;, s[1]==&#x27;a&#x27; vs s[~1]=&#x27;a&#x27;, s[2]==&#x27;c&#x27; vs s[~2]=&#x27;c&#x27; across range(3), returning True. For &#x27;abc&#x27;: s[0]==&#x27;a&#x27; vs s[~0]=&#x27;c&#x27; fails immediately, returning False.</div></div>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#13</span><span class='sev sev-info'>info</span><span class='pf pf-pass'>pass</span><span class='meta'>criterion: Valid Python</span></div><p class='finding-msg'>Code is syntactically and semantically valid. Uses only standard operators (bitwise NOT ~, floor division //, indexing) and built-in functions (all, range, len) with no runtime errors for string inputs.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>All syntax: def statement, generator expression, all(), range(), len() are valid Python constructs. No type errors or undefined names.</div></div>
+<h2>Also noted — advisory (beyond the stated spec)</h2>
+<p class='advisory-note'>True observations the stated expectation/criteria did not require. Recorded for context; they did not affect the verdict.</p>
+<div class='advisory'>
+<h3>council:clarity</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:clarity#11</span><span class='sev sev-low'>low</span><span class='meta'>criterion: Implementation clarity (beyond stated criteria)</span></div><p class='finding-msg'>The bitwise NOT idiom (`~i`) is non-obvious. While correct, it requires understanding Python&#x27;s two&#x27;s complement behavior and negative indexing, which may reduce readability.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>The expression `s[i] == s[~i]` implicitly uses `~i` to produce `-(i+1)` for negative indexing. More explicit alternatives exist: `s[i] == s[len(s)-1-i]` or `s[i] == s[-(i+1)]` would be immediately clearer.</div></div>
+<h3>council:adversarial</h3>
+<div class='finding'><div class='finding-head'><span class='fid'>council:adversarial#14</span><span class='sev sev-medium'>medium</span><span class='meta'>criterion: Robustness to non-string inputs</span></div><p class='finding-msg'>The function lacks input validation and will raise TypeError if passed non-string inputs (e.g., integers, None). While the task assumes string input, an adversarial caller could pass is_palindrome(12321) or is_palindrome(None), causing a crash instead of a clean failure.</p><div class='evidence'><span class='evidence-label'>evidence</span><br>No type checking or guards. A call like `is_palindrome(123)` would fail at `len(s)` or indexing with &#x27;int object is not subscriptable&#x27; rather than returning False.</div></div>
+</div>
+<footer>Generated by the Agentic Testing Framework tribunal.</footer>
+</main>
+</body>
+</html>
