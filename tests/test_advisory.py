@@ -147,11 +147,11 @@ def test_cli_print_verdict_shows_advisory_section_when_present(capsys):
     verdict = Verdict(outcome=Outcome.PASS, rationale="r", findings=(in_scope, advisory))
     _print_verdict(verdict)
     out = capsys.readouterr().out
-    assert "Also noted (advisory, beyond the stated spec):" in out
+    assert "Also noted — advisory (beyond the stated spec):" in out
     assert "beyond-spec advisory note" in out
     # The in-scope finding prints under the normal ledger, not the advisory section.
     ledger_at = out.index("Evidence ledger:")
-    advisory_at = out.index("Also noted (advisory")
+    advisory_at = out.index("Also noted — advisory")
     assert out.index("in-scope note") > ledger_at
     assert out.index("in-scope note") < advisory_at
 
@@ -162,7 +162,7 @@ def test_cli_print_verdict_omits_advisory_section_when_absent(capsys):
     )
     _print_verdict(Verdict(outcome=Outcome.PASS, rationale="r", findings=(finding,)))
     out = capsys.readouterr().out
-    assert "Also noted (advisory" not in out
+    assert "Also noted — advisory" not in out
 
 
 def test_backward_compat_mock_pipeline_still_six_calls():
