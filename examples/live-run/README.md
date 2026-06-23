@@ -10,6 +10,14 @@ The tribunal ruled **FAIL** with 18 cited findings across the reviewer and the f
 lenses, and a written rationale that names the exact defect. Open `report.html` in a browser
 to see the full evidence ledger — the part a single "is this good?" judge doesn't give you.
 
+`report-advisory.html` is a second real run that shows **advisory (out-of-scope) findings** in
+action. The case is a *correct* palindrome check that uses the non-obvious `s[~i]` mirror index.
+The tribunal ruled **PASS** — it meets the stated expectation — and *also* recorded two
+**advisories** the task never required but a caller might want anyway: that the `~i` idiom is
+non-obvious, and that the function would raise `TypeError` on non-string input. A single judge
+gives a bare verdict; the tribunal gives the verdict **plus** these beyond-spec notes in a
+separate "Also noted — advisory" section, none of which counted against the PASS.
+
 Regenerate (spends Claude usage):
 
 ```bash
