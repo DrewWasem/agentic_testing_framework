@@ -29,7 +29,11 @@ LENS_GUIDANCE = {
     "accuracy": "Judge ONLY factual and logical correctness against the expectation.",
     "completeness": "Judge ONLY whether every required part of the task is present.",
     "clarity": "Judge ONLY clarity, structure, and readability.",
-    "adversarial": "Act as a skeptic: hunt for the single strongest reason this output FAILS.",
+    "adversarial": (
+        "Act as a skeptic: hunt for the single strongest reason this output FAILS TO MEET "
+        "THE STATED EXPECTATION OR CRITERIA. Do not penalize it for requirements the task "
+        "did not state."
+    ),
 }
 
 

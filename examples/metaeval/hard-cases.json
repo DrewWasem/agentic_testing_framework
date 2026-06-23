@@ -1,0 +1,66 @@
+[
+  {
+    "id": "hard-buried-false-cause",
+    "input": "Briefly explain three causes of the 2008 global financial crisis.",
+    "output": "Three major causes were: (1) the proliferation of subprime mortgage lending to borrowers who could not realistically repay; (2) the widespread securitization of those loans into complex instruments such as CDOs that obscured the underlying risk; and (3) the introduction of the Euro in 2008, which destabilized global currency markets and triggered the collapse.",
+    "expectation": "Explains causes of the 2008 crisis. Every cause it states must be factually accurate.",
+    "criteria": ["Identifies real causes of the 2008 crisis", "Every stated cause is factually correct (no fabricated or false cause)"],
+    "gold": "fail"
+  },
+  {
+    "id": "hard-median-even-bug",
+    "input": "Write a Python function median(nums) that returns the median of a list of numbers.",
+    "output": "def median(nums):\n    nums.sort()\n    return nums[len(nums) // 2]",
+    "expectation": "A correct median function for both odd- and even-length lists.",
+    "criteria": ["Correct for odd-length lists", "Correct for even-length lists", "Valid Python"],
+    "gold": "fail"
+  },
+  {
+    "id": "hard-leap-year-bug",
+    "input": "Write a Python function is_leap_year(y) that returns True if y is a leap year in the Gregorian calendar.",
+    "output": "def is_leap_year(y):\n    return y % 4 == 0",
+    "expectation": "Correctly implements the Gregorian leap-year rule, including the century exception (a year divisible by 100 is a leap year only if it is also divisible by 400).",
+    "criteria": ["Handles ordinary years divisible by 4", "Correctly handles century years (e.g. distinguishes 1900 from 2000)", "Valid Python"],
+    "gold": "fail"
+  },
+  {
+    "id": "hard-hollow-summary",
+    "input": "Summarize the main finding of this study in one or two sentences: 'In a controlled trial, participants who slept eight hours recalled 35% more word pairs the next day than participants kept awake overnight, indicating that sleep supports memory consolidation.'",
+    "output": "This study makes a valuable contribution to the field. The researchers employed a rigorous methodology, and their results carry meaningful implications for both theory and practice. Overall, it is a noteworthy addition to the existing literature on human cognition.",
+    "expectation": "States the study's actual main finding in one or two sentences.",
+    "criteria": ["Conveys what the study actually found (its specific result/conclusion)", "Is not vacuous filler that omits the finding"],
+    "gold": "fail"
+  },
+  {
+    "id": "hard-wrong-speed-math",
+    "input": "A train travels 60 miles in 1.5 hours. At the same constant speed, how long does it take to travel 100 miles?",
+    "output": "Traveling at 60 mph, covering 100 miles takes 100 / 60 = 1.67 hours, or about 1 hour and 40 minutes.",
+    "expectation": "Gives the correct travel time for 100 miles at the train's actual speed (derived from 60 miles in 1.5 hours).",
+    "criteria": ["Uses the correct speed derived from the given distance and time", "Reaches the correct final time"],
+    "gold": "fail"
+  },
+  {
+    "id": "hard-point-nine-repeating",
+    "input": "Is the repeating decimal 0.999... exactly equal to 1, or just very close? Answer and briefly justify.",
+    "output": "They are exactly equal: 0.999... = 1. One quick justification: 1/3 = 0.333..., and multiplying both sides by 3 gives 1 = 0.999....",
+    "expectation": "Correctly answers whether 0.999... is exactly equal to 1 or only approximately equal, with a brief valid justification.",
+    "criteria": ["States the mathematically correct relationship between 0.999... and 1", "Provides a valid justification"],
+    "gold": "pass"
+  },
+  {
+    "id": "hard-palindrome-tilde",
+    "input": "Write a Python function is_palindrome(s) that returns True if the string s is a palindrome.",
+    "output": "def is_palindrome(s):\n    return all(s[i] == s[~i] for i in range(len(s) // 2))",
+    "expectation": "A correct palindrome check that returns True for palindromes and False otherwise.",
+    "criteria": ["Returns True for palindromes and False for non-palindromes", "Valid Python"],
+    "gold": "pass"
+  },
+  {
+    "id": "hard-dedup-oneliner",
+    "input": "Write a single-line Python expression that removes duplicate items from a list named items while preserving their original first-seen order.",
+    "output": "list(dict.fromkeys(items))",
+    "expectation": "Correctly removes duplicates while preserving the original first-seen order.",
+    "criteria": ["Removes duplicate items", "Preserves the original first-seen order", "Valid, correct Python"],
+    "gold": "pass"
+  }
+]
